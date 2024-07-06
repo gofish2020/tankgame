@@ -31,6 +31,8 @@ func NewGame() *Game {
 	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0), float64(ScreenHeight/2.0), tank.TankTypePlayer))
 
 	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0), float64(ScreenHeight/2.0), tank.TankTypeNPC))
+
+	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0+100), float64(ScreenHeight/2.0+100), tank.TankTypeNPC))
 	return &game
 }
 
@@ -60,18 +62,39 @@ func (g *Game) Update() error {
 
 	}
 
-	minDistance := math.MaxInt
-	// 计算距离 player 最近的坦克
-	playerPoints.t.Enemy = nil
+	// 更新处于npc攻击范围内的坦克
 	for _, npcPoint := range npcPoints {
-		x := npcPoint.x - playerPoints.x
-		y := npcPoint.y - playerPoints.y
-		distance := int(math.Sqrt(x*x + y*y))
 
-		if minDistance > distance { // 找距离最近的坦克
-			minDistance = distance
-			if minDistance <= 300 {
-				playerPoints.t.Enemy = npcPoint.t
+		// 默认（无敌人）坦克
+		npcPoint.t.Enemy = nil
+
+		x := playerPoints.x - npcPoint.x
+		y := playerPoints.y - npcPoint.y
+		distance := math.Sqrt(x*x + y*y)
+
+		if npcPoint.t.Turrent.RangeDistance >= distance { // 在攻击范围内
+
+			// 在视野内
+			angle := math.Atan2(y, x) * 180 / math.Pi
+			if angle < 0 {
+				angle += 360.0
+			}
+
+			startAngle, endAngle := npcPoint.t.Turrent.Angle-npcPoint.t.Turrent.RangeAngle, npcPoint.t.Turrent.Angle+npcPoint.t.Turrent.RangeAngle
+			if endAngle > 360 {
+				endAngle -= 360
+			}
+			if startAngle < 0 {
+				startAngle += 360
+			}
+			// 正常情况下 startAngle <= endAngle
+			if startAngle <= endAngle && startAngle <= angle && angle <= endAngle {
+				npcPoint.t.Enemy = playerPoints.t
+			} else {
+				// 如果处于 0 or 360的分割位置，startAngle > endAngle
+				if angle <= endAngle || angle >= startAngle {
+					npcPoint.t.Enemy = playerPoints.t
+				}
 			}
 		}
 	}
@@ -86,10 +109,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for _, tk := range g.tks {
 		tk.Draw(screen)
 	}
-
 	// 绘制键盘
-
-	keyboard.Draw(screen)
+	keyboard.Draw(g.tks[0], screen)
 
 }
 
