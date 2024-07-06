@@ -3,7 +3,6 @@ package game
 import (
 	"math"
 
-	"github.com/gofish2020/tankgame/package/keyboard"
 	"github.com/gofish2020/tankgame/package/tank"
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -11,8 +10,6 @@ import (
 var (
 	ScreenWidth  int
 	ScreenHeight int
-
-	hullImage = "resource/green_tank_hull.png"
 )
 
 func init() {
@@ -22,57 +19,71 @@ func init() {
 }
 
 type Game struct {
-	tks []*tank.Tank
+	tks   []*tank.Tank
+	incre int16
 }
 
 func NewGame() *Game {
 
 	game := Game{}
 	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0), float64(ScreenHeight/2.0), tank.TankTypePlayer))
-
-	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0), float64(ScreenHeight/2.0), tank.TankTypeNPC))
-
-	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0+100), float64(ScreenHeight/2.0+100), tank.TankTypeNPC))
+	//game.AddEnemy(3)
 	return &game
 }
 
-type Points struct {
-	x float64
-	y float64
-	t *tank.Tank
-}
+// 新增敌人
+func (g *Game) AddEnemy(count int) {
 
+	for range count {
+		x, y := tank.MinXCoordinates, tank.MinYCoordinates
+		switch g.incre % 3 { // 按照轮询的方式，选择放置位置
+		case 0:
+
+		case 1:
+			x = float64(ScreenWidth) / 2.0
+		case 2:
+			x = float64(ScreenWidth) - tank.MinXCoordinates
+		}
+		g.tks = append(g.tks, tank.NewTank(x, y, tank.TankTypeNPC))
+		g.incre++
+	}
+
+	// game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0+100), float64(ScreenHeight/2.0+100), tank.TankTypeNPC))
+}
 func (g *Game) Update() error {
 
-	var playerPoints Points
+	var playerPosition tank.TankPosition
 
-	var npcPoints []Points
+	var npcPositions []tank.TankPosition
 	// 更新每个坦克数据
 	for _, tk := range g.tks {
 		tk.Update()
-		tk.LimitRange(30, 30, float64(ScreenWidth)-30, float64(ScreenHeight)-30)
+		// 限制坦克运动范围
+		tk.LimitRange(tank.MinXCoordinates, tank.MinYCoordinates, float64(ScreenWidth)-30, float64(ScreenHeight)-30)
 
+		// 记录下坦克当前的位置
 		if tk.TkType == tank.TankTypePlayer {
-			playerPoints.x = tk.X
-			playerPoints.y = tk.Y
-			playerPoints.t = tk
+
+			playerPosition.X = tk.X
+			playerPosition.Y = tk.Y
+			playerPosition.TK = tk
 		} else {
-			npcPoints = append(npcPoints, Points{x: tk.X, y: tk.Y, t: tk})
+			npcPositions = append(npcPositions, tank.TankPosition{X: tk.X, Y: tk.Y, TK: tk})
 		}
 
 	}
 
-	// 更新处于npc攻击范围内的坦克
-	for _, npcPoint := range npcPoints {
+	// 更新npc攻击范围内的坦克(为了做自动攻击)
+	for _, npcPosition := range npcPositions {
 
 		// 默认（无敌人）坦克
-		npcPoint.t.Enemy = nil
+		npcPosition.TK.Enemy = nil
 
-		x := playerPoints.x - npcPoint.x
-		y := playerPoints.y - npcPoint.y
+		x := playerPosition.X - npcPosition.X
+		y := playerPosition.Y - npcPosition.Y
 		distance := math.Sqrt(x*x + y*y)
 
-		if npcPoint.t.Turrent.RangeDistance >= distance { // 在攻击范围内
+		if npcPosition.TK.Turrent.RangeDistance >= distance { // 在攻击范围内
 
 			// 在视野内
 			angle := math.Atan2(y, x) * 180 / math.Pi
@@ -80,7 +91,7 @@ func (g *Game) Update() error {
 				angle += 360.0
 			}
 
-			startAngle, endAngle := npcPoint.t.Turrent.Angle-npcPoint.t.Turrent.RangeAngle, npcPoint.t.Turrent.Angle+npcPoint.t.Turrent.RangeAngle
+			startAngle, endAngle := npcPosition.TK.Turrent.Angle-npcPosition.TK.Turrent.RangeAngle, npcPosition.TK.Turrent.Angle+npcPosition.TK.Turrent.RangeAngle
 			if endAngle > 360 {
 				endAngle -= 360
 			}
@@ -89,11 +100,11 @@ func (g *Game) Update() error {
 			}
 			// 正常情况下 startAngle <= endAngle
 			if startAngle <= endAngle && startAngle <= angle && angle <= endAngle {
-				npcPoint.t.Enemy = playerPoints.t
+				npcPosition.TK.Enemy = playerPosition.TK
 			} else {
 				// 如果处于 0 or 360的分割位置，startAngle > endAngle
 				if angle <= endAngle || angle >= startAngle {
-					npcPoint.t.Enemy = playerPoints.t
+					npcPosition.TK.Enemy = playerPosition.TK
 				}
 			}
 		}
@@ -101,16 +112,27 @@ func (g *Game) Update() error {
 	return nil
 }
 
+var (
+	menuType = "init"
+)
+
 func (g *Game) Draw(screen *ebiten.Image) {
 	// 清屏
 	screen.Clear()
+	//screen.Fill(color.RGBA{240, 222, 180, 255}) // Desert background
+
+	if menuType == "init" {
+		tank.MenuDraw(ScreenWidth, ScreenHeight, screen)
+	}
 
 	// 绘制每个坦克
 	for _, tk := range g.tks {
 		tk.Draw(screen)
+		// 绘制按键
+		if tk.TkType == tank.TankTypePlayer {
+			tank.KeyPressDrawAroundTank(tk, screen)
+		}
 	}
-	// 绘制键盘
-	keyboard.Draw(g.tks[0], screen)
 
 }
 

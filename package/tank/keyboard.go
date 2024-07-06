@@ -1,4 +1,4 @@
-package keyboard
+package tank
 
 import (
 	"bytes"
@@ -7,17 +7,13 @@ import (
 	"log"
 	"math"
 
-	"github.com/gofish2020/tankgame/package/tank"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
 )
 
 var (
-	mplusNormalFont     *text.GoTextFaceSource
-	mplusNormalFontFace font.Face
+	mplusNormalFont *text.GoTextFaceSource
 )
 
 func init() {
@@ -26,21 +22,14 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	mplusNormalFont = s
-
-	tt, _ := opentype.Parse(fonts.MPlus1pRegular_ttf)
-	mplusNormalFontFace, _ = opentype.NewFace(tt, &opentype.FaceOptions{
-		Size: 20,
-		DPI:  100,
-	})
-
 }
-func Draw(t *tank.Tank, screen *ebiten.Image) {
+
+func KeyPressDrawAroundTank(t *Tank, screen *ebiten.Image) {
 
 	op := &text.DrawOptions{}
 
-	op.ColorScale.ScaleWithColor(color.RGBA{0, 255, 0, 255})
+	op.ColorScale.ScaleWithColor(color.RGBA{210, 105, 30, 255})
 	keyWord := ""
 	x, y := 0.0, 0.0
 	if ebiten.IsKeyPressed(ebiten.KeyW) {
@@ -54,6 +43,7 @@ func Draw(t *tank.Tank, screen *ebiten.Image) {
 	op.GeoM.Translate(x, y)
 	angleRad := t.Angle * math.Pi / 180.0 // 角度转弧度
 	op.GeoM.Rotate(angleRad)
+	// x,y 经过旋转 angleRad 角度后的位置坐标 x1,y1
 	x1, y1 := x*math.Cos(angleRad)-y*math.Sin(angleRad), x*math.Sin(angleRad)+y*math.Cos(angleRad)
 	//op.LineSpacing = 100
 	op.GeoM.Translate(x1+t.X, y1+t.Y)

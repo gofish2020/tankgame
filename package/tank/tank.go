@@ -9,7 +9,6 @@ import (
 	"github.com/gofish2020/tankgame/package/utils"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 type TankType int
@@ -18,8 +17,8 @@ const (
 	ScreenToLogicScaleX = 5.12
 	ScreenToLogicScaleY = 5.12
 
-	minXCoordinates = 30
-	minYCoordinates = 30
+	MinXCoordinates = 30.0
+	MinYCoordinates = 30.0
 
 	TankTypePlayer TankType = iota
 	TankTypeNPC
@@ -59,6 +58,12 @@ type Tank struct {
 
 	// 在攻击范围内的坦克
 	Enemy *Tank
+}
+
+type TankPosition struct {
+	X  float64
+	Y  float64
+	TK *Tank
 }
 
 type Turret struct {
@@ -108,7 +113,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		BackwardSpeed: 1.5,
 
 		Turrent: Turret{
-			Angle:         270.0,
+			Angle:         270.0, // 默认指向上
 			ImagePath:     "resource/green_tank_turret.png",
 			RotationSpeed: 2.0,
 		},
@@ -116,6 +121,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 	}
 
 	if tankType == TankTypePlayer {
+
 		tank.Turrent.RangeAngle = 360.0
 		tank.Turrent.RangeDistance = 300.0
 	} else {
@@ -124,6 +130,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		tank.Turrent.RangeAngle = 45.0
 		tank.Turrent.RangeDistance = 100.0 + float64(r.Intn(300))
 		tank.Turrent.ImagePath = "resource/brown_tank_turret.png"
+		tank.Turrent.Angle = 90.0 // 敌人默认指向下
 	}
 
 	return &tank
@@ -248,7 +255,7 @@ func (tk *Tank) drawAttackCircle(screen *ebiten.Image) {
 
 	if tk.TkType == TankTypePlayer {
 		// player 才有提示圈
-		vector.StrokeCircle(screen, float32(tk.X), float32(tk.Y), float32(tk.Turrent.RangeDistance), 1.0, clr, true)
+		//vector.StrokeCircle(screen, float32(tk.X), float32(tk.Y), float32(tk.Turrent.RangeDistance), 1.0, clr, true)
 	} else {
 		startAngle, endAngle := (tk.Turrent.Angle-tk.Turrent.RangeAngle)*math.Pi/180, (tk.Turrent.Angle+tk.Turrent.RangeAngle)*math.Pi/180
 		utils.DrawSector(screen, float32(tk.X), float32(tk.Y), 1.0, float32(tk.Turrent.RangeDistance), float32(startAngle), float32(endAngle), clr, false)
@@ -269,10 +276,11 @@ func (tk *Tank) drawTank(screen *ebiten.Image) {
 	op.GeoM.Translate(-baseOffsetX, -baseOffsetY)
 	// 旋转图片
 	op.GeoM.Rotate(tk.Angle * math.Pi / 180.0)
-	// 再平移图片到窗口的中心位置 （ 因为绘制收缩了，所以屏幕坐标需要增大）
-	op.GeoM.Translate(tk.X*ScreenToLogicScaleX, tk.Y*ScreenToLogicScaleY)
+
 	// 整个绘制收缩了（ 50 / 256）倍，即 1/5.12
 	op.GeoM.Scale(1/ScreenToLogicScaleX, 1/ScreenToLogicScaleY)
+	// 再平移图片到窗口的中心位置 （ 因为绘制收缩了，所以屏幕坐标需要增大）
+	op.GeoM.Translate(tk.X, tk.Y)
 	// 绘制图片
 	screen.DrawImage(tankBody, op)
 
@@ -290,10 +298,11 @@ func (tk *Tank) drawTurrent(screen *ebiten.Image) {
 	op.GeoM.Translate(-baseOffsetX, -baseOffsetY)
 	// 旋转图片
 	op.GeoM.Rotate(tk.Turrent.Angle * math.Pi / 180.0)
-	// 再平移图片到窗口的中心位置 （ 因为绘制收缩了，所以屏幕坐标需要增大）
-	op.GeoM.Translate(tk.X*ScreenToLogicScaleX, tk.Y*ScreenToLogicScaleY)
+
 	// 整个绘制收缩了（ 50 / 256）倍，即 1/5.12
 	op.GeoM.Scale(1/ScreenToLogicScaleX, 1/ScreenToLogicScaleY)
+	// 再平移图片到窗口的中心位置 （ 因为绘制收缩了，所以屏幕坐标需要增大）
+	op.GeoM.Translate(tk.X, tk.Y)
 	// 绘制图片
 	screen.DrawImage(turrentBody, op)
 }

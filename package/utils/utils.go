@@ -44,35 +44,6 @@ func Resize(path string, w, h uint) *image.Image {
 	return &m
 }
 
-func StrokeArc(dst *ebiten.Image, cx, cy, r float32, startAngle, endAngle float32, strokeWidth float32, clr color.Color, antialias bool) {
-	var path vector.Path
-	path.QuadTo(cx, cy, cx+100, cy+100)
-	path.Close()
-
-	strokeOp := &vector.StrokeOptions{}
-	strokeOp.Width = strokeWidth
-	vs, is := path.AppendVerticesAndIndicesForStroke(nil, nil, strokeOp)
-
-	drawVerticesForUtil(dst, vs, is, clr, antialias)
-}
-
-func drawVerticesForUtil(dst *ebiten.Image, vs []ebiten.Vertex, is []uint16, clr color.Color, antialias bool) {
-	r, g, b, a := clr.RGBA()
-	for i := range vs {
-		vs[i].SrcX = 1
-		vs[i].SrcY = 1
-		vs[i].ColorR = float32(r) / 0xffff
-		vs[i].ColorG = float32(g) / 0xffff
-		vs[i].ColorB = float32(b) / 0xffff
-		vs[i].ColorA = float32(a) / 0xffff
-	}
-
-	op := &ebiten.DrawTrianglesOptions{}
-	op.ColorScaleMode = ebiten.ColorScaleModePremultipliedAlpha
-	op.AntiAlias = antialias
-	dst.DrawTriangles(vs, is, whiteSubImage, op)
-}
-
 func DrawSector(screen *ebiten.Image, x, y float32, lineWidth float32, radius float32, startAngle, endAngle float32, clr color.Color, isFill bool) {
 	var path vector.Path
 
