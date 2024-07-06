@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofish2020/tankgame/package/game"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
 func main() {
@@ -14,18 +15,21 @@ func main() {
 	ebiten.SetTPS(50)            // 窗口刷新频率
 	ebiten.SetVsyncEnabled(true) // 垂直同步
 	ebiten.SetWindowDecorated(false)
-	ebiten.SetWindowTitle("Tank Shot")
+	ebiten.SetWindowTitle("Tank Shoot")
 	ebiten.SetWindowSize(game.ScreenWidth, game.ScreenHeight)
 	ebiten.SetWindowFloating(true) // 置顶显示
 	ebiten.SetWindowMousePassthrough(true)
+
+	audio.NewContext(44100)
+	audio.CurrentContext().NewPlayerFromBytes([]byte{}).Play() // 类似于预热的感觉（可能是库有bug）
 
 	game := game.NewGame()
 	err := ebiten.RunGameWithOptions(game, &ebiten.RunGameOptions{
 		InitUnfocused:     true, // 启动时候，窗体不聚焦
 		ScreenTransparent: true, // 窗体透明
 		SkipTaskbar:       true, // 图片不显示在任务栏
-		X11ClassName:      "Tank Shot",
-		X11InstanceName:   "Tank Shot",
+		X11ClassName:      "Tank Shoot",
+		X11InstanceName:   "Tank Shoot",
 	})
 	if err != nil {
 		log.Fatal(err)

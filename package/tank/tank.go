@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofish2020/tankgame/package/utils"
+	"github.com/gofish2020/tankgame/package/utils/sound"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
@@ -146,6 +147,8 @@ func (t *Tank) Update() {
 	if t.TkType == TankTypePlayer { // 玩家坦克，手瞄
 
 		if ebiten.IsKeyPressed(ebiten.KeySpace) && t.ReloadTimer == t.ReloadMaxTimer {
+
+			sound.PlaySound("boom")
 			t.ReloadTimer = 0
 		}
 

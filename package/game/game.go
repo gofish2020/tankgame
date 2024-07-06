@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/gofish2020/tankgame/package/tank"
+	"github.com/gofish2020/tankgame/package/utils/sound"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -27,7 +28,7 @@ func NewGame() *Game {
 
 	game := Game{}
 	game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0), float64(ScreenHeight/2.0), tank.TankTypePlayer))
-	//game.AddEnemy(3)
+	sound.LoadSound()
 	return &game
 }
 
@@ -52,6 +53,7 @@ func (g *Game) AddEnemy(count int) {
 }
 func (g *Game) Update() error {
 
+	sound.PlayBGM()
 	var playerPosition tank.TankPosition
 
 	var npcPositions []tank.TankPosition
