@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/gofish2020/tankgame/package/monitor"
 	"github.com/gofish2020/tankgame/package/utils"
 	"github.com/gofish2020/tankgame/package/utils/sound"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -26,11 +27,13 @@ const (
 )
 
 type Tank struct {
-	X float64
-	Y float64
+	X      float64
+	Y      float64
+	Width  float64 // 宽度
+	Height float64 // 高度
 
-	TkType    TankType
-	ImagePath string
+	TkType    TankType // 坦克的操作者
+	ImagePath string   // 坦克图片
 
 	// 🩸血量
 	HealthPoints    int
@@ -54,11 +57,34 @@ type Tank struct {
 	// 后退速度
 	BackwardSpeed float64
 
+	// 四个角，旋转后的坐标（做碰撞检测）
+	CollisionX1 float64
+	CollisionY1 float64
+	CollisionX2 float64
+	CollisionY2 float64
+	CollisionX3 float64
+	CollisionY3 float64
+	CollisionX4 float64
+	CollisionY4 float64
+
 	// 炮塔参数
 	Turrent Turret
 
 	// 在攻击范围内的坦克
 	Enemy *Tank
+
+	Projectiles []*Projectile // 发射的炮弹
+}
+
+// 炮弹
+type Projectile struct {
+	X         float64 // 炮弹坐标 X
+	Y         float64 // 炮弹坐标 Y
+	Speed     float64 // 运行速率
+	Angle     float64 // 移动方向
+	Width     float64 // 宽度
+	Height    float64 // 高度
+	IsExplode bool    // 是否已碰撞
 }
 
 type TankPosition struct {
@@ -67,6 +93,7 @@ type TankPosition struct {
 	TK *Tank
 }
 
+// 炮塔
 type Turret struct {
 	Angle     float64
 	ImagePath string
@@ -77,6 +104,9 @@ type Turret struct {
 	//攻击范围
 	RangeAngle    float64
 	RangeDistance float64
+
+	//子弹速率
+	ProjectileSpeed float64
 }
 
 var (
@@ -114,15 +144,17 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		BackwardSpeed: 1.5,
 
 		Turrent: Turret{
-			Angle:         270.0, // 默认指向上
-			ImagePath:     "resource/green_tank_turret.png",
-			RotationSpeed: 2.0,
+			Angle:           270.0, // 默认指向上
+			ImagePath:       "resource/green_tank_turret.png",
+			RotationSpeed:   2.0,
+			ProjectileSpeed: 5.0,
 		},
-		Enemy: nil,
+
+		Projectiles: nil,
+		Enemy:       nil,
 	}
 
 	if tankType == TankTypePlayer {
-
 		tank.Turrent.RangeAngle = 360.0
 		tank.Turrent.RangeDistance = 300.0
 	} else {
@@ -137,6 +169,18 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 	return &tank
 }
 
+func (t *Tank) shot() {
+	// 生成炮弹
+	newProjectile := Projectile{
+		X:         t.X,                       // 炮弹初始X
+		Y:         t.Y,                       // 炮弹初始Y
+		Angle:     t.Turrent.Angle,           // 初始角度（就是炮塔的角度）
+		IsExplode: false,                     // 是否已经爆炸
+		Speed:     t.Turrent.ProjectileSpeed, // 炮弹移动速度
+	}
+	t.Projectiles = append(t.Projectiles, &newProjectile)
+}
+
 func (t *Tank) Update() {
 
 	// 填充子弹
@@ -147,7 +191,7 @@ func (t *Tank) Update() {
 	if t.TkType == TankTypePlayer { // 玩家坦克，手瞄
 
 		if ebiten.IsKeyPressed(ebiten.KeySpace) && t.ReloadTimer == t.ReloadMaxTimer {
-
+			t.shot()
 			sound.PlaySound("boom")
 			t.ReloadTimer = 0
 		}
@@ -219,10 +263,50 @@ func (t *Tank) Update() {
 		}
 	}
 
+	t.updateProjectile()
+
+}
+
+// 更新坦克的边界
+func (t *Tank) UpdateCollisionBox() {
+
+	// // offsetX,offsetY 表示旋转前的四个角左边
+	// offsetX := float64(t.Width) / 2
+	// offsetY := float64(t.Hull.Height) / 2
+
+	// // Convert tank's game logic coordinates to screen coordinates
+	// tankXScreen := t.Hull.X / gameLogicToScreenXOffset
+	// tankYScreen := t.Hull.Y / gameLogicToScreenYOffset
+
+	// // 这个表示准备旋转的角度 Angle
+	// angleRad := t.Hull.Angle * math.Pi / 180 // 角度转弧度
+
+	// /*
+	// 	x' = xCos(θ) - ySin(θ)
+	// 	y' = xSin(θ) + ycos(θ)
+	// */
+	// // 计算旋转后的四个角的坐标
+
+	// // 左上角 (x = -offsetX  y = -offsetY)
+	// t.Hull.CollisionX1 = tankXScreen - offsetX*math.Cos(angleRad) + offsetY*math.Sin(angleRad)
+	// t.Hull.CollisionY1 = tankYScreen - offsetX*math.Sin(angleRad) - offsetY*math.Cos(angleRad)
+
+	// // 右上角 (x = offsetX y = -offsetY )
+	// t.Hull.CollisionX2 = tankXScreen + offsetX*math.Cos(angleRad) + offsetY*math.Sin(angleRad)
+	// t.Hull.CollisionY2 = tankYScreen + offsetX*math.Sin(angleRad) - offsetY*math.Cos(angleRad)
+
+	// // 右下角 (x = offsetX y = offsetY)
+	// t.Hull.CollisionX3 = tankXScreen + offsetX*math.Cos(angleRad) - offsetY*math.Sin(angleRad)
+	// t.Hull.CollisionY3 = tankYScreen + offsetX*math.Sin(angleRad) + offsetY*math.Cos(angleRad)
+
+	// // 左下角 (x = -offsetX y=offsetY)
+	// t.Hull.CollisionX4 = tankXScreen - offsetX*math.Cos(angleRad) - offsetY*math.Sin(angleRad)
+	// t.Hull.CollisionY4 = tankYScreen - offsetX*math.Sin(angleRad) + offsetY*math.Cos(angleRad)
+
 }
 
 // 限制运行范围
-func (t *Tank) LimitRange(minXCoordinates, minYCoordinates, maxXCoordinates, maxYCoordinates float64) {
+func (t *Tank) LimitTankRange(minXCoordinates, minYCoordinates, maxXCoordinates, maxYCoordinates float64) {
 	if t.X < minXCoordinates {
 		t.X = minXCoordinates
 	}
@@ -237,6 +321,48 @@ func (t *Tank) LimitRange(minXCoordinates, minYCoordinates, maxXCoordinates, max
 	}
 }
 
+// 更新炮弹的移动
+func (t *Tank) updateProjectile() {
+
+	for idx, projectile := range t.Projectiles {
+
+		// 检查炮弹是否已经飞出去边界
+		if projectile.X < 0 || projectile.X > monitor.ScreenWidth || projectile.Y < 0 || projectile.Y > monitor.ScreenHeight {
+			// 删除炮弹
+			t.removeProjectile(idx)
+			continue
+		}
+
+		if projectile.IsExplode { // 炮弹已经爆炸
+			// 删除炮弹
+			t.removeProjectile(idx)
+			continue
+		}
+		// 转为弧度
+		angleRadians := projectile.Angle * math.Pi / 180.0
+		offsetX := projectile.Speed * math.Cos(angleRadians)
+		offsetY := projectile.Speed * math.Sin(angleRadians)
+		projectile.X += offsetX
+		projectile.Y += offsetY
+
+	}
+}
+
+// 删除炮弹
+func (t *Tank) removeProjectile(index int) {
+	// Ensure the index is within bounds
+	if index < 0 || index >= len(t.Projectiles) {
+		return
+	}
+	t.Projectiles = append(t.Projectiles[:index], t.Projectiles[index+1:]...)
+}
+
+//........................基础元素绘制.....................
+
+var (
+	projectileImage, _, _ = ebitenutil.NewImageFromFile("resource/projectile.png")
+)
+
 // 绘制坦克各个元素
 func (t *Tank) Draw(screen *ebiten.Image) {
 
@@ -245,9 +371,37 @@ func (t *Tank) Draw(screen *ebiten.Image) {
 	t.drawHealthBar(screen)
 	t.drawReload(screen)
 	t.drawAttackCircle(screen)
+	t.drawProjectile(screen)
+	t.drawExplode(screen)
+
 }
 
-//........................基础元素绘制.....................
+// 绘制爆炸特效
+func (t *Tank) drawExplode(screen *ebiten.Image) {
+
+}
+
+// 绘制炮弹
+func (tk *Tank) drawProjectile(screen *ebiten.Image) {
+
+	for _, projectile := range tk.Projectiles {
+
+		op := &ebiten.DrawImageOptions{}
+
+		baseOffsetX := float64(projectileImage.Bounds().Dx()) / 2
+		baseOffsetY := float64(projectileImage.Bounds().Dy()) / 2
+
+		// 先平移图片（将图片的中心，移动到（0，0）位置）
+		op.GeoM.Translate(-baseOffsetX, -baseOffsetY)
+		// 旋转图片
+		op.GeoM.Rotate(projectile.Angle * math.Pi / 180.0)
+
+		// 再平移图片到窗口的中心位置 （ 因为绘制收缩了，所以屏幕坐标需要增大）
+		op.GeoM.Translate(projectile.X, projectile.Y)
+		// 绘制图片
+		screen.DrawImage(projectileImage, op)
+	}
+}
 
 func (tk *Tank) drawAttackCircle(screen *ebiten.Image) {
 
@@ -261,7 +415,7 @@ func (tk *Tank) drawAttackCircle(screen *ebiten.Image) {
 		//vector.StrokeCircle(screen, float32(tk.X), float32(tk.Y), float32(tk.Turrent.RangeDistance), 1.0, clr, true)
 	} else {
 		startAngle, endAngle := (tk.Turrent.Angle-tk.Turrent.RangeAngle)*math.Pi/180, (tk.Turrent.Angle+tk.Turrent.RangeAngle)*math.Pi/180
-		utils.DrawSector(screen, float32(tk.X), float32(tk.Y), 1.0, float32(tk.Turrent.RangeDistance), float32(startAngle), float32(endAngle), clr, false)
+		utils.DrawSector(screen, float32(tk.X), float32(tk.Y), 1.0, float32(tk.Turrent.RangeDistance), float32(startAngle), float32(endAngle), clr, true)
 	}
 }
 

@@ -22,11 +22,15 @@ var (
 	//go:embed bgm.mp3
 	bgm []byte
 
+	//go:embed dead.mp3
+	dead []byte
+
 	mSound map[string][]byte
 )
 
 func init() {
 	mSound = make(map[string][]byte)
+	LoadSound()
 }
 
 func LoadSound() {
@@ -54,6 +58,19 @@ func LoadSound() {
 	}
 
 	mSound["bgm"] = data
+
+	deadStream, err := mp3.DecodeWithSampleRate(44100, bytes.NewReader(dead))
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 这里的data 应该是pcm原始数据
+	data, err = io.ReadAll(deadStream)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mSound["dead"] = data
+
 }
 
 func PlaySound(s string) {

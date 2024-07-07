@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gofish2020/tankgame/package/game"
+	"github.com/gofish2020/tankgame/package/monitor"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
@@ -16,9 +17,9 @@ func main() {
 	ebiten.SetVsyncEnabled(true) // 垂直同步
 	ebiten.SetWindowDecorated(false)
 	ebiten.SetWindowTitle("Tank Shoot")
-	ebiten.SetWindowSize(game.ScreenWidth, game.ScreenHeight)
-	ebiten.SetWindowFloating(true) // 置顶显示
-	ebiten.SetWindowMousePassthrough(true)
+	ebiten.SetWindowSize(int(monitor.ScreenWidth), int(monitor.ScreenHeight))
+	ebiten.SetWindowFloating(true)         // 置顶显示
+	ebiten.SetWindowMousePassthrough(true) // 鼠标穿透
 
 	audio.NewContext(44100)
 	audio.CurrentContext().NewPlayerFromBytes([]byte{}).Play() // 类似于预热的感觉（可能是库有bug）

@@ -25,6 +25,7 @@ func init() {
 	mplusNormalFont = s
 }
 
+// 绘制坦克周围的 按键特效
 func KeyPressDrawAroundTank(t *Tank, screen *ebiten.Image) {
 
 	op := &text.DrawOptions{}

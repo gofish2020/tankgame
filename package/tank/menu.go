@@ -1,22 +1,34 @@
 package tank
 
 import (
+	"fmt"
 	"image/color"
+	"os"
 
+	"github.com/gofish2020/tankgame/package/monitor"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
+// 按钮坐标
+type Coordinates struct {
+	X      float64
+	Y      float64
+	Width  float64
+	Height float64
+}
+
 var (
 	playButtonImg, exitButtonImg, logoImg *ebiten.Image
 
-	playOffsetX = 0.0
-	playOffsetY = 0.0
+	playButton Coordinates
+	exitButton Coordinates
 )
 
 func init() {
+	// 按钮图片
 	playButtonImage, _, _ := ebitenutil.NewImageFromFile("resource/play_button.png")
 	playButtonImg = playButtonImage
 
@@ -25,12 +37,59 @@ func init() {
 
 	logoImage, _, _ := ebitenutil.NewImageFromFile("resource/logo.png")
 	logoImg = logoImage
+
+	// 按钮坐标
+	playButton = Coordinates{
+		X:      monitor.ScreenWidth - 250.0,
+		Y:      0,
+		Width:  250,
+		Height: 74,
+	}
+
+	exitButton = Coordinates{
+		X:      0,
+		Y:      monitor.ScreenHeight - 74.0,
+		Width:  250.0,
+		Height: 74.0,
+	}
 }
 
-// 绘制主菜单
-func MenuDraw(w, h int, screen *ebiten.Image) {
-	screen.Fill(color.RGBA{240, 222, 180, 215})
-	drawButton(w, h, screen)
+// **************************** 更新主菜单坐标 *********************
+func MenuUpdate(tk []*Tank) {
+
+	playButton.Y += 3
+	if playButton.Y >= monitor.ScreenHeight {
+		playButton.Y = 0
+	}
+
+	exitButton.X += 5
+	if exitButton.X >= monitor.ScreenWidth {
+		exitButton.X = 0
+	}
+
+	for _, t := range tk {
+		for _, projectile := range t.Projectiles {
+
+			if checkForCollisions(projectile.X, projectile.Y, playButton.X, playButton.Y, playButton.X+playButton.Width, playButton.Y+playButton.Height) {
+				fmt.Println("goal!!!!!")
+				projectile.IsExplode = true
+			}
+
+			if checkForCollisions(projectile.X, projectile.Y, exitButton.X, exitButton.Y, exitButton.X+exitButton.Width, exitButton.Y+exitButton.Height) {
+				os.Exit(0)
+			}
+		}
+	}
+}
+
+func checkForCollisions(x, y float64, x1, y1, x2, y2 float64) bool {
+
+	return x1 < x && x < x2 && y1 < y && y < y2
+}
+
+// ******************* 绘制主菜单 ******************
+func MenuDraw(screen *ebiten.Image) {
+	drawButton(screen)
 	drawTip(screen)
 	drawLogo(screen)
 	drawKeyborad(screen)
@@ -138,24 +197,20 @@ func drawTip(screen *ebiten.Image) {
 		Source: mplusNormalFont,
 		Size:   50}, op)
 }
-func drawButton(w, h int, screen *ebiten.Image) {
+func drawButton(screen *ebiten.Image) {
 
 	// play button
 	buttonOp := &ebiten.DrawImageOptions{}
-	playOffsetY += 3
-	if playOffsetY >= float64(h) {
-		playOffsetY = 0
-	}
-	buttonOp.GeoM.Translate(float64(w-250), playOffsetY)
+
+	buttonOp.GeoM.Translate(playButton.X, playButton.Y)
 	screen.DrawImage(playButtonImg, buttonOp)
 
 	// exit button
 
 	buttonOp.GeoM.Reset()
-	playOffsetX += 5
-	if playOffsetX >= float64(w) {
-		playOffsetX = 0
-	}
-	buttonOp.GeoM.Translate(playOffsetX, float64(h-74))
+
+	buttonOp.GeoM.Translate(exitButton.X, exitButton.Y)
 	screen.DrawImage(exitButtonImg, buttonOp)
 }
+
+//////////////////////////////////////////
