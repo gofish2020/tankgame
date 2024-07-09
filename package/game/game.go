@@ -6,57 +6,65 @@ import (
 
 	"github.com/gofish2020/tankgame/package/monitor"
 	"github.com/gofish2020/tankgame/package/tank"
+	"github.com/gofish2020/tankgame/package/utils"
 	"github.com/gofish2020/tankgame/package/utils/sound"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-var (
-	menuType = "init" // init play over
-)
-
 type Game struct {
-	tks   []*tank.Tank
-	incre int16
+	tks  []*tank.Tank
+	incr int16
 }
 
 func NewGame() *Game {
 
 	game := Game{}
-	game.tks = append(game.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight/2.0), tank.TankTypePlayer))
-
-	//game.AddEnemy(3)
+	game.tks = append(game.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
 	return &game
+}
+
+func (g *Game) Restart() {
+	if utils.GameProgress == "prepare" {
+		g.tks = nil
+		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
+		g.AddEnemy(3)
+		utils.GameProgress = "play"
+	}
 }
 
 // 新增敌人
 func (g *Game) AddEnemy(count int) {
 
 	for range count {
-		x, y := tank.MinXCoordinates, tank.MinYCoordinates
-		switch g.incre % 3 { // 按照轮询的方式，选择放置位置
+		x, y := tank.MinXCoordinates, tank.MinYCoordinates+300
+		switch g.incr % 3 { // 按照轮询的方式，选择放置位置
 		case 0:
-
 		case 1:
 			x = float64(monitor.ScreenWidth) / 2.0
 		case 2:
 			x = float64(monitor.ScreenWidth) - tank.MinXCoordinates
 		}
 		g.tks = append(g.tks, tank.NewTank(x, y, tank.TankTypeNPC))
-		g.incre++
+		g.incr++
 	}
 
 	// game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0+100), float64(monitor.ScreenHeight/2.0+100), tank.TankTypeNPC))
 }
 func (g *Game) Update() error {
 
+	g.Restart()
+
 	// 播放 bgm
 	sound.PlayBGM()
 
 	var playerPosition tank.TankPosition
 	var npcPositions []tank.TankPosition
-	// 更新每个坦克数据
+
 	for _, tk := range g.tks {
+		// 更新坦克
 		tk.Update()
+		// 检测子弹碰撞
+		tk.CheckCollisions(g.tks)
 		// 限制坦克运动范围
 		tk.LimitTankRange(tank.MinXCoordinates, tank.MinYCoordinates, float64(monitor.ScreenWidth)-30, float64(monitor.ScreenHeight)-30)
 
@@ -72,9 +80,9 @@ func (g *Game) Update() error {
 	}
 
 	// 初始界面
-	if menuType == "init" {
-		tank.MenuUpdate(g.tks)
-	} else if menuType == "play" { // 游戏界面
+	if utils.GameProgress == "init" {
+		tank.MenuUpdate(g.tks) //  按钮移动 + 炮弹和按钮碰撞
+	} else if utils.GameProgress == "play" { // 游戏界面
 
 		// 更新npc攻击范围内的坦克(为了做自动攻击)
 		for _, npcPosition := range npcPositions {
@@ -112,10 +120,9 @@ func (g *Game) Update() error {
 				}
 			}
 		}
-	} else if menuType == "dead" {
-
 	}
 
+	tank.GameOverUpdate()
 	return nil
 }
 
@@ -123,16 +130,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// 清屏
 	screen.Clear()
 
-	tank.GameOverDraw(screen)
-
-	return
 	screen.Fill(color.RGBA{240, 222, 180, 215})
 
-	if menuType == "init" {
+	if utils.GameProgress == "init" {
 		tank.MenuDraw(screen)
-	} else if menuType == "over" {
-
-		return
 	}
 
 	// 绘制每个坦克
@@ -144,6 +145,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	tank.GameOverDraw(screen)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

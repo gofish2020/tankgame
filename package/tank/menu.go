@@ -1,11 +1,11 @@
 package tank
 
 import (
-	"fmt"
 	"image/color"
 	"os"
 
 	"github.com/gofish2020/tankgame/package/monitor"
+	"github.com/gofish2020/tankgame/package/utils"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -55,6 +55,8 @@ func init() {
 }
 
 // **************************** 更新主菜单坐标 *********************
+
+// 按钮移动 + 炮弹和按钮碰撞
 func MenuUpdate(tk []*Tank) {
 
 	playButton.Y += 3
@@ -70,13 +72,15 @@ func MenuUpdate(tk []*Tank) {
 	for _, t := range tk {
 		for _, projectile := range t.Projectiles {
 
-			if checkForCollisions(projectile.X, projectile.Y, playButton.X, playButton.Y, playButton.X+playButton.Width, playButton.Y+playButton.Height) {
-				fmt.Println("goal!!!!!")
-				projectile.IsExplode = true
-			}
+			if !projectile.IsExplode {
+				if checkForCollisions(projectile.X, projectile.Y, playButton.X, playButton.Y, playButton.X+playButton.Width, playButton.Y+playButton.Height) {
+					projectile.IsExplode = true
+					utils.GameProgress = "prepare"
+				}
 
-			if checkForCollisions(projectile.X, projectile.Y, exitButton.X, exitButton.Y, exitButton.X+exitButton.Width, exitButton.Y+exitButton.Height) {
-				os.Exit(0)
+				if checkForCollisions(projectile.X, projectile.Y, exitButton.X, exitButton.Y, exitButton.X+exitButton.Width, exitButton.Y+exitButton.Height) {
+					os.Exit(0)
+				}
 			}
 		}
 	}
@@ -212,5 +216,3 @@ func drawButton(screen *ebiten.Image) {
 	buttonOp.GeoM.Translate(exitButton.X, exitButton.Y)
 	screen.DrawImage(exitButtonImg, buttonOp)
 }
-
-//////////////////////////////////////////
