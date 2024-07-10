@@ -27,8 +27,10 @@ func (g *Game) Restart() {
 	if utils.GameProgress == "prepare" {
 		g.tks = nil
 		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
-		g.AddEnemy(3)
+		g.AddEnemy(1)
 		utils.GameProgress = "play"
+		utils.KilledCount = 0
+
 	}
 }
 
@@ -60,6 +62,7 @@ func (g *Game) Update() error {
 	var playerPosition tank.TankPosition
 	var npcPositions []tank.TankPosition
 
+	liveTanks := []*tank.Tank{}
 	for _, tk := range g.tks {
 		// 更新坦克
 		tk.Update()
@@ -70,14 +73,23 @@ func (g *Game) Update() error {
 
 		// 记录下坦克当前的位置
 		if tk.TkType == tank.TankTypePlayer {
-
 			playerPosition.X = tk.X
 			playerPosition.Y = tk.Y
 			playerPosition.TK = tk
 		} else {
 			npcPositions = append(npcPositions, tank.TankPosition{X: tk.X, Y: tk.Y, TK: tk})
 		}
+
+		if tk.HealthPoints != 0 {
+			liveTanks = append(liveTanks, tk)
+		} else {
+			utils.KilledCount++
+			tk.DeathSound()
+		}
 	}
+
+	// 检测存活的坦克
+	g.tks = liveTanks
 
 	// 初始界面
 	if utils.GameProgress == "init" {

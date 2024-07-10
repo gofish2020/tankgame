@@ -2,9 +2,13 @@ package sound
 
 import (
 	"bytes"
+	"embed"
 	_ "embed"
 	"io"
+	"io/fs"
 	"log"
+	"path/filepath"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
@@ -16,61 +20,58 @@ var (
 
 	bgmPlayer *audio.Player = nil
 
-	//go:embed boom.wav
-	boom []byte
-
-	//go:embed bgm.mp3
-	bgm []byte
-
-	//go:embed dead.mp3
-	dead []byte
-
 	mSound map[string][]byte
+
+	//go:embed *
+	f embed.FS
 )
 
 func init() {
 	mSound = make(map[string][]byte)
-	LoadSound()
+	loadSound()
 }
 
-func LoadSound() {
+// 加载音频文件
+func loadSound() {
 
-	boomStream, err := wav.DecodeWithSampleRate(44100, bytes.NewReader(boom))
-	if err != nil {
-		log.Fatal(err)
+	a, _ := fs.ReadDir(f, ".")
+
+	for _, v := range a {
+		// 读取文件内容
+		data, _ := f.ReadFile(v.Name())
+
+		// 去掉文件名后缀（只剩下文件名）
+		name := strings.TrimSuffix(v.Name(), filepath.Ext(v.Name()))
+		// 文件后缀
+		ext := filepath.Ext(v.Name())
+
+		switch ext {
+		case ".mp3":
+
+			mp3Stream, err := mp3.DecodeWithSampleRate(44100, bytes.NewReader(data))
+			if err != nil {
+				log.Fatal(err)
+			}
+			// 这里的data 应该是pcm原始数据
+			data, err := io.ReadAll(mp3Stream)
+			if err != nil {
+				log.Fatal(err)
+			}
+			mSound[name] = data
+		case ".wav":
+			stream, err := wav.DecodeWithSampleRate(44100, bytes.NewReader(data))
+			if err != nil {
+				log.Fatal(err)
+			}
+			// 这里的data 应该是pcm原始数据
+			data, err := io.ReadAll(stream)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			mSound[name] = data
+		}
 	}
-	// 这里的data 应该是pcm原始数据
-	data, err := io.ReadAll(boomStream)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mSound["boom"] = data
-
-	bgmStream, err := mp3.DecodeWithSampleRate(44100, bytes.NewReader(bgm))
-	if err != nil {
-		log.Fatal(err)
-	}
-	// 这里的data 应该是pcm原始数据
-	data, err = io.ReadAll(bgmStream)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mSound["bgm"] = data
-
-	deadStream, err := mp3.DecodeWithSampleRate(44100, bytes.NewReader(dead))
-	if err != nil {
-		log.Fatal(err)
-	}
-	// 这里的data 应该是pcm原始数据
-	data, err = io.ReadAll(deadStream)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mSound["dead"] = data
-
 }
 
 func PlaySound(s string) {

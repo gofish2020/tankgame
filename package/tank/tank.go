@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/gofish2020/tankgame/package/monitor"
@@ -12,6 +13,21 @@ import (
 	"github.com/gofish2020/tankgame/package/utils/sound"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+)
+
+var (
+
+	// Define a list of enemy names
+	enemyNames = []string{"Albert", "Allen", "Bert", "Bob",
+		"Cecil", "Clarence", "Elliot", "Elmer",
+		"Ernie", "Eugene", "Fergus", "Ferris",
+		"Frank", "Frasier", "Fred", "George",
+		"Graham", "Harvey", "Irwin", "Larry",
+		"Lester", "Marvin", "Neil", "Niles",
+		"Oliver", "Opie", "Ryan", "Toby",
+		"Ulric", "Ulysses", "Uri", "Waldo",
+		"Wally", "Walt", "Wesley", "Yanni",
+		"Yogi", "Yuri"}
 )
 
 type TankType int
@@ -32,6 +48,8 @@ type Tank struct {
 	Y      float64
 	Width  float64 // 宽度
 	Height float64 // 高度
+
+	Name string
 
 	TkType    TankType // 坦克的操作者
 	ImagePath string   // 坦克图片
@@ -145,8 +163,8 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		ReloadBarWidth:  50,
 		ReloadBarHeight: 5,
 
-		HealthPoints:    100,
-		MaxHealthPoints: 100,
+		HealthPoints:    200,
+		MaxHealthPoints: 200,
 		HealthBarWidth:  50,
 		HealthBarHeight: 5,
 
@@ -167,29 +185,51 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 	if tankType == TankTypePlayer {
 		tank.Turrent.RangeAngle = 360.0
 		tank.Turrent.RangeDistance = 300.0
+		tank.Name = "ikun"
 	} else {
 		tank.ImagePath = "resource/brown_tank.png"
+		tank.MaxHealthPoints = 50
+		tank.HealthPoints = 50
 
 		tank.Turrent.RangeAngle = 45.0
 		tank.Turrent.RangeDistance = 100.0 + float64(r.Intn(300))
 		tank.Turrent.ImagePath = "resource/brown_tank_turret.png"
 		tank.Turrent.Angle = 90.0 // 敌人默认指向下
+
+		tank.Name = enemyNames[r.Intn(len(enemyNames))]
 	}
 	tank.updateTankCollisionBox()
 
 	return &tank
 }
 
-func (t *Tank) shot() {
-	// 生成炮弹
-	newProjectile := Projectile{
-		X:         t.X,                       // 炮弹初始X
-		Y:         t.Y,                       // 炮弹初始Y
-		Angle:     t.Turrent.Angle,           // 初始角度（就是炮塔的角度）
-		IsExplode: false,                     // 是否已经爆炸
-		Speed:     t.Turrent.ProjectileSpeed, // 炮弹移动速度
+func (t *Tank) DeathSound() {
+
+	soundName := strconv.Itoa(utils.KilledCount)
+	if utils.KilledCount > 5 {
+		soundName = "dead" + strconv.Itoa(rand.Intn(4)+1)
 	}
-	t.Projectiles = append(t.Projectiles, &newProjectile)
+	sound.PlaySound(soundName)
+}
+func (t *Tank) shot() {
+	// 能量满，才能射击
+	if t.ReloadTimer == t.ReloadMaxTimer {
+		if t.TkType == TankTypePlayer { // player
+			sound.PlaySound("boom")
+		}
+
+		t.ReloadTimer = 0
+		// 生成炮弹
+		newProjectile := Projectile{
+			X:         t.X,                       // 炮弹初始X
+			Y:         t.Y,                       // 炮弹初始Y
+			Angle:     t.Turrent.Angle,           // 初始角度（就是炮塔的角度）
+			IsExplode: false,                     // 是否已经爆炸
+			Speed:     t.Turrent.ProjectileSpeed, // 炮弹移动速度
+		}
+		t.Projectiles = append(t.Projectiles, &newProjectile)
+	}
+
 }
 
 func (t *Tank) Update() {
@@ -201,10 +241,8 @@ func (t *Tank) Update() {
 
 	if t.TkType == TankTypePlayer { // 玩家坦克，手瞄
 
-		if ebiten.IsKeyPressed(ebiten.KeySpace) && t.ReloadTimer == t.ReloadMaxTimer {
+		if ebiten.IsKeyPressed(ebiten.KeySpace) {
 			t.shot()
-			sound.PlaySound("boom")
-			t.ReloadTimer = 0
 		}
 
 		if ebiten.IsKeyPressed(ebiten.KeyA) { // Press A
@@ -272,7 +310,12 @@ func (t *Tank) Update() {
 				} else {
 					t.Turrent.Angle += 1
 				}
+			} else {
+				// 这里精准瞄准，立刻射击
+				t.shot()
 			}
+
+			// t.shot() // 不管是否瞄准，就射击
 		}
 	}
 
@@ -466,13 +509,13 @@ func (tk *Tank) drawProjectile(screen *ebiten.Image) {
 
 func (tk *Tank) drawAttackCircle(screen *ebiten.Image) {
 
-	clr := color.RGBA{0, 255, 0, 128}
+	clr := color.RGBA{124, 252, 0, 100}
 	if tk.Enemy != nil {
-		clr = color.RGBA{255, 0, 0, 128}
+		clr = color.RGBA{255, 69, 0, 100}
 	}
 
 	if tk.TkType == TankTypePlayer {
-		// player 才有提示圈
+		// player 圆圈
 		//vector.StrokeCircle(screen, float32(tk.X), float32(tk.Y), float32(tk.Turrent.RangeDistance), 1.0, clr, true)
 	} else {
 		startAngle, endAngle := (tk.Turrent.Angle-tk.Turrent.RangeAngle)*math.Pi/180, (tk.Turrent.Angle+tk.Turrent.RangeAngle)*math.Pi/180

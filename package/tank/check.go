@@ -1,10 +1,5 @@
 package tank
 
-import (
-	"fmt"
-	"math"
-)
-
 type Point struct {
 	X, Y float64
 }
@@ -16,12 +11,11 @@ func (t *Tank) CheckCollisions(tks []*Tank) {
 	for _, projectile := range t.Projectiles {
 		for _, tk := range tks {
 
-			if !projectile.IsExplode {
+			if !projectile.IsExplode { // 子弹正常情况下
 				if isProjectileCollisionsTank(projectile.X, projectile.Y, tk, t) {
 					projectile.IsExplode = true
 				}
 			}
-
 		}
 	}
 }
@@ -32,64 +26,39 @@ func isProjectileCollisionsTank(x, y float64, t *Tank, origin *Tank) bool {
 		return false
 	}
 
-	vertices := []Point{{t.CollisionX1, t.CollisionY1}, {t.CollisionX2, t.CollisionY2}, {t.CollisionX3, t.CollisionY3}, {t.CollisionX4, t.CollisionY4}}
-	if checkCollision2(Point{x, y}, vertices) {
-		fmt.Println(111)
+	// vertices := []Point{{t.CollisionX1, t.CollisionY1}, {t.CollisionX2, t.CollisionY2}, {t.CollisionX3, t.CollisionY3}, {t.CollisionX4, t.CollisionY4}}
+	// if checkCollision1(Point{x, y}, vertices) {
+	// 	t.HealthPoints -= 50 // 扣除血条
+	// 	return true
+
+	// }
+
+	if checkCollision(Point{x, y}, t.X, t.Y, t.Width, t.Height, t.Angle) {
+
+		t.HealthPoints -= 50 // 扣除血条
 		return true
 	}
 	return false
 }
 
-func checkCollision(pX, pY, x1, y1, x2, y2, x3, y3, x4, y4, tankAngle float64) bool {
+func checkCollision(point Point, cx, cy float64, width, height float64, tankAngle float64) bool {
 
-	angleRad := tankAngle * math.Pi / 180.0
+	// 坦克旋转 tankAngle角度，等价于 坦克不旋转，点 point 逆向旋转 -tankAngle
+	rotatedPX, rotatedPY := rotatePoint(point.X, point.Y, -tankAngle, cx, cy)
 
-	rotatedPX := math.Cos(angleRad)*(pX-x1) - math.Sin(angleRad)*(pY-y1) + x1
-	rotatedPY := math.Sin(angleRad)*(pX-x1) + math.Cos(angleRad)*(pY-y1) + y1
+	halfW, halfH := width/2, height/2
 
-	// Calculate vectors from point 1 to the other corners of the rectangle
-	vector1X := x2 - x1
-	vector1Y := y2 - y1
-	vector2X := x3 - x1
-	vector2Y := y3 - y1
+	xTop, yTop := cx-halfW, cy-halfH
+	xBottom, yBottom := cx+halfW, cy+halfH
 
-	// Calculate vectors from point 1 to the rotated projectile point
-	vectorPX := rotatedPX - x1
-	vectorPY := rotatedPY - y1
-
-	// Calculate dot products
-	dot1 := vectorPX*vector1X + vectorPY*vector1Y
-	dot2 := vectorPX*vector2X + vectorPY*vector2Y
-
-	// Check if the point is inside the rectangle
-	return dot1 >= 0 && dot1 <= vector1X*vector1X+vector1Y*vector1Y &&
-		dot2 >= 0 && dot2 <= vector2X*vector2X+vector2Y*vector2Y
+	// 就把旋转矩形变成不旋转的状态
+	if xTop <= rotatedPX && rotatedPX <= xBottom && yTop <= rotatedPY && rotatedPY <= yBottom {
+		return true
+	}
+	return false
 }
 
-func checkCollision1(pX, pY, x1, y1, x2, y2, x3, y3, x4, y4, cx, cy, tankAngle float64) bool {
-
-	rotatedPX, rotatedPY := rotatePoint(pX, pY, -tankAngle, cx, cy)
-
-	// 计算从中心点到其他顶点的向量
-	vector1X := x2 - x1
-	vector1Y := y2 - y1
-	vector2X := x3 - x1
-	vector2Y := y3 - y1
-
-	// 计算从中心点到旋转后点的向量
-	vectorPX := rotatedPX - x1
-	vectorPY := rotatedPY - y1
-
-	// 计算点积
-	dot1 := vectorPX*vector1X + vectorPY*vector1Y
-	dot2 := vectorPX*vector2X + vectorPY*vector2Y
-
-	// 判断点是否在矩形内
-	return dot1 >= 0 && dot1 <= vector1X*vector1X+vector1Y*vector1Y &&
-		dot2 >= 0 && dot2 <= vector2X*vector2X+vector2Y*vector2Y
-}
-
-func checkCollision2(point Point, vertices []Point) bool {
+func checkCollision1(point Point, vertices []Point) bool {
 
 	// 使用交叉乘积法判断点是否在多边形内
 	for i := 0; i < 4; i++ {
