@@ -34,7 +34,7 @@ func (g *Game) Restart() {
 
 	} else if utils.GameProgress == "next" {
 		utils.GameLevel++
-		if utils.GameLevel > 1 {
+		if utils.GameLevel > 4 {
 			utils.GameProgress = "pass" // 通关
 		} else {
 			g.tks = nil
@@ -50,7 +50,7 @@ func (g *Game) Restart() {
 func (g *Game) AddEnemy(count int) {
 
 	for range count {
-		x, y := tank.MinXCoordinates, tank.MinYCoordinates+300
+		x, y := tank.MinXCoordinates, tank.MinYCoordinates
 		switch g.incr % 3 { // 按照轮询的方式，选择放置位置
 		case 0:
 		case 1:

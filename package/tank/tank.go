@@ -189,7 +189,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		tank.Turrent.RangeAngle = 360.0
 		tank.Turrent.RangeDistance = 300.0
 		tank.Name = "ikun"
-		tank.ReloadSpeed = 3.0
+		tank.ReloadSpeed = 2.0
 	} else {
 
 		var level utils.TankLevel // 随机坦克的速度
