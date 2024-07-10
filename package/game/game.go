@@ -25,12 +25,24 @@ func NewGame() *Game {
 
 func (g *Game) Restart() {
 	if utils.GameProgress == "prepare" {
+		utils.GameLevel = 1
 		g.tks = nil
 		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
-		g.AddEnemy(2)
+		g.AddEnemy(2 * utils.GameLevel)
 		utils.GameProgress = "play"
 		utils.KilledCount = 0
 
+	} else if utils.GameProgress == "next" {
+		utils.GameLevel++
+		if utils.GameLevel > 1 {
+			utils.GameProgress = "pass" // 通关
+		} else {
+			g.tks = nil
+			g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
+			g.AddEnemy(2 * utils.GameLevel)
+			utils.GameProgress = "play"
+			//utils.KilledCount = 0
+		}
 	}
 }
 
@@ -53,6 +65,7 @@ func (g *Game) AddEnemy(count int) {
 }
 func (g *Game) Update() error {
 
+	enemyCount := 0
 	g.Restart()
 
 	// 绘制障碍物
@@ -90,6 +103,7 @@ func (g *Game) Update() error {
 				utils.KilledCount++
 				tk.DeathSound()
 			} else {
+				enemyCount++
 				npcPositions = append(npcPositions, tank.TankPosition{X: tk.X, Y: tk.Y, TK: tk})
 			}
 		}
@@ -102,7 +116,7 @@ func (g *Game) Update() error {
 	g.tks = liveTanks
 
 	// 初始界面
-	if utils.GameProgress == "init" {
+	if utils.GameProgress == "init" || utils.GameProgress == "pass" {
 		tank.MenuUpdate(g.tks) //  按钮移动 + 炮弹和按钮碰撞
 	} else if utils.GameProgress == "play" { // 游戏界面
 
@@ -180,6 +194,10 @@ func (g *Game) Update() error {
 		}
 	}
 
+	if utils.GameProgress == "play" && enemyCount == 0 { // 全部消灭
+		utils.GameProgress = "next"
+	}
+
 	tank.GameOverUpdate()
 	return nil
 }
@@ -188,7 +206,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// 清屏
 	//screen.Clear()
 	screen.Fill(color.RGBA{240, 222, 180, 215})
-	if utils.GameProgress == "init" {
+	if utils.GameProgress == "init" || utils.GameProgress == "pass" {
 		tank.MenuDraw(screen)
 	}
 	// 绘制每个坦克

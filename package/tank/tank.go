@@ -61,8 +61,10 @@ type Tank struct {
 	HealthBarHeight float64
 
 	// 炮弹装填
-	ReloadTimer     int
-	ReloadMaxTimer  int
+	ReloadTimer    int
+	ReloadMaxTimer int
+	ReloadSpeed    int
+
 	ReloadBarWidth  float64
 	ReloadBarHeight float64
 
@@ -159,6 +161,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 
 		ReloadTimer:    0,
 		ReloadMaxTimer: 100,
+		ReloadSpeed:    1.0,
 
 		ReloadBarWidth:  50,
 		ReloadBarHeight: 5,
@@ -168,8 +171,8 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		HealthBarWidth:  50,
 		HealthBarHeight: 5,
 
-		ForwardSpeed:  3.0,
-		BackwardSpeed: 1.5,
+		ForwardSpeed:  5.0,
+		BackwardSpeed: 3.5,
 
 		Turrent: Turret{
 			Angle:           270.0, // 默认指向上
@@ -186,9 +189,16 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		tank.Turrent.RangeAngle = 360.0
 		tank.Turrent.RangeDistance = 300.0
 		tank.Name = "ikun"
+		tank.ReloadSpeed = 3.0
 	} else {
 
-		var level = utils.TankLevels[r.Intn(len(utils.TankLevels))] // 随机坦克的速度
+		var level utils.TankLevel // 随机坦克的速度
+		if utils.GameLevel <= 3 {
+			level = utils.TankLevels[r.Intn(utils.GameLevel*6)]
+		} else {
+			level = utils.TankLevels[r.Intn(len(utils.TankLevels))]
+		}
+
 		tank.ImagePath = "resource/brown_tank.png"
 		tank.MaxHealthPoints = 50
 		tank.HealthPoints = 50
@@ -219,7 +229,11 @@ func (t *Tank) shot() {
 	// 能量满，才能射击
 	if t.ReloadTimer == t.ReloadMaxTimer {
 		if t.TkType == TankTypePlayer { // player
-			sound.PlaySound("boom")
+			if utils.GameProgress == "pass" {
+				sound.PlaySound("dog")
+			} else {
+				sound.PlaySound("boom")
+			}
 		}
 
 		t.ReloadTimer = 0
@@ -261,7 +275,10 @@ func (t *Tank) Update() {
 
 	// 填充子弹
 	if t.ReloadTimer < t.ReloadMaxTimer {
-		t.ReloadTimer++
+		t.ReloadTimer += t.ReloadSpeed
+		if t.ReloadTimer > t.ReloadMaxTimer {
+			t.ReloadTimer = t.ReloadMaxTimer
+		}
 	}
 
 	if t.TkType == TankTypePlayer { // 玩家坦克，手瞄
@@ -329,10 +346,10 @@ func (t *Tank) Update() {
 				}
 			} else {
 				// 这里精准瞄准，立刻射击
-				t.shot()
+				//t.shot()
 			}
 
-			// t.shot() // 不管是否瞄准，就射击
+			t.shot() // 不管是否瞄准，就射击
 		}
 	}
 

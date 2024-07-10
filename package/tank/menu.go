@@ -97,6 +97,24 @@ func MenuDraw(screen *ebiten.Image) {
 	drawTip(screen)
 	drawLogo(screen)
 	drawKeyborad(screen)
+	drawDog(screen)
+}
+
+func drawDog(screen *ebiten.Image) {
+
+	if utils.GameProgress == "pass" {
+		dogImage, _, _ := ebitenutil.NewImageFromFile("resource/dog.jpeg")
+		op := &ebiten.DrawImageOptions{}
+
+		baseOffsetX := float64(dogImage.Bounds().Dx()) / 2 // hullBody.Bounds().Dx() = 256
+		baseOffsetY := float64(dogImage.Bounds().Dy()) / 2 // hullBody.Bounds().Dy() = 256
+
+		// 先平移图片（将图片的中心，移动到（0，0）位置）
+		op.GeoM.Translate(-baseOffsetX, -baseOffsetY)
+		op.GeoM.Scale(.5, .5)
+		op.GeoM.Translate(monitor.ScreenWidth/2, monitor.ScreenHeight/2)
+		screen.DrawImage(dogImage, op)
+	}
 }
 
 func drawOneKey(x, y float32, w float32, keyWord string, screen *ebiten.Image) {
