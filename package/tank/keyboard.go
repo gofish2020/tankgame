@@ -25,7 +25,7 @@ func init() {
 	mplusNormalFont = s
 }
 
-// 绘制坦克周围的 按键特效
+// 绘制坦克周围的
 func KeyPressDrawAroundTank(t *Tank, screen *ebiten.Image) {
 
 	op := &text.DrawOptions{}
@@ -42,7 +42,7 @@ func KeyPressDrawAroundTank(t *Tank, screen *ebiten.Image) {
 	}
 
 	op.GeoM.Translate(x, y)
-	angleRad := t.Angle * math.Pi / 180.0 // 角度转弧度
+	angleRad := (t.Angle + 90) * math.Pi / 180.0 // 角度转弧度 (因为坦克头默认是向右，转-90度才是正向，此时的字体是不用转的，所以需要+90消掉转的效果)
 	op.GeoM.Rotate(angleRad)
 	// x,y 经过旋转 angleRad 角度后的位置坐标 x1,y1
 	x1, y1 := x*math.Cos(angleRad)-y*math.Sin(angleRad), x*math.Sin(angleRad)+y*math.Cos(angleRad)

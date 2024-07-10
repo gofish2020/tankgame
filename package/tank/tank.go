@@ -154,7 +154,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		Height: 50, // 坦克的高
 
 		TkType:        tankType,
-		Angle:         0.0,
+		Angle:         270.0,
 		RotationSpeed: 2.0,
 
 		ReloadTimer:    0,
@@ -187,15 +187,19 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		tank.Turrent.RangeDistance = 300.0
 		tank.Name = "ikun"
 	} else {
+
+		var level = utils.TankLevels[r.Intn(len(utils.TankLevels))] // 随机坦克的速度
 		tank.ImagePath = "resource/brown_tank.png"
 		tank.MaxHealthPoints = 50
 		tank.HealthPoints = 50
+		tank.Angle = 90.0
+		tank.ForwardSpeed = level.Speed
+		tank.BackwardSpeed = level.RotateSpeed
 
 		tank.Turrent.RangeAngle = 45.0
 		tank.Turrent.RangeDistance = 100.0 + float64(r.Intn(300))
 		tank.Turrent.ImagePath = "resource/brown_tank_turret.png"
 		tank.Turrent.Angle = 90.0 // 敌人默认指向下
-
 		tank.Name = enemyNames[r.Intn(len(enemyNames))]
 	}
 	tank.updateTankCollisionBox()
@@ -232,6 +236,27 @@ func (t *Tank) shot() {
 
 }
 
+// 目的在于让 炮塔的角度始终使用 正度数 表示 [0,360]之间
+func (t *Tank) AddTurrentAngle(duration float64) {
+
+	t.Turrent.Angle += duration
+	if t.Turrent.Angle >= 360.0 { // 超过360，转成360度范围
+		t.Turrent.Angle -= 360.0
+	} else if t.Turrent.Angle < 0 { // 负数转正数
+		t.Turrent.Angle += 360.0
+	}
+}
+
+func (t *Tank) AddTankAngle(duration float64) {
+
+	t.Angle += duration
+	if t.Angle >= 360.0 { // 超过360，转成360度范围
+		t.Angle -= 360.0
+	} else if t.Angle < 0 { // 负数转正数
+		t.Angle += 360.0
+	}
+}
+
 func (t *Tank) Update() {
 
 	// 填充子弹
@@ -246,29 +271,29 @@ func (t *Tank) Update() {
 		}
 
 		if ebiten.IsKeyPressed(ebiten.KeyA) { // Press A
-			t.Angle -= t.RotationSpeed
+
+			t.AddTankAngle(-t.RotationSpeed)
 			t.updateTankCollisionBox()
 		} else if ebiten.IsKeyPressed(ebiten.KeyD) { // Press D
-			t.Angle += t.RotationSpeed
+
+			t.AddTankAngle(t.RotationSpeed)
 			t.updateTankCollisionBox()
 		}
-
 		if ebiten.IsKeyPressed(ebiten.KeyW) { // Press W
-
-			t.X -= t.ForwardSpeed * math.Sin(-t.Angle*math.Pi/180)
-			t.Y -= t.ForwardSpeed * math.Cos(-t.Angle*math.Pi/180)
+			t.X += t.ForwardSpeed * math.Cos(t.Angle*math.Pi/180)
+			t.Y += t.ForwardSpeed * math.Sin(t.Angle*math.Pi/180)
 			t.updateTankCollisionBox()
 		} else if ebiten.IsKeyPressed(ebiten.KeyS) { // Press S
-			t.X += t.BackwardSpeed * math.Sin(-t.Angle*math.Pi/180)
-			t.Y += t.BackwardSpeed * math.Cos(-t.Angle*math.Pi/180)
+			t.Y -= t.BackwardSpeed * math.Sin(t.Angle*math.Pi/180)
+			t.X -= t.BackwardSpeed * math.Cos(t.Angle*math.Pi/180)
 			t.updateTankCollisionBox()
 		}
 
 		// 手动瞄准
 		if ebiten.IsKeyPressed(ebiten.KeyJ) { // Press J
-			t.Turrent.Angle -= t.Turrent.RotationSpeed
+			t.AddTurrentAngle(-t.Turrent.RotationSpeed)
 		} else if ebiten.IsKeyPressed(ebiten.KeyK) { // Press K
-			t.Turrent.Angle += t.Turrent.RotationSpeed
+			t.AddTurrentAngle(t.Turrent.RotationSpeed)
 		}
 
 	} else { // npc tank 自瞄
@@ -286,29 +311,21 @@ func (t *Tank) Update() {
 				angle += 360
 			}
 
-			// 将 t.Turrent.Angle 限定在 [0,360]之间
-			if t.Turrent.Angle >= 360 {
-				t.Turrent.Angle -= 360
-			} else if t.Turrent.Angle < 0 {
-				t.Turrent.Angle += 360
-			}
-
 			// t.Turrent.Angle 表示炮塔和 x轴的夹角
 			// angle 表示两个坦克连线 和 x轴的夹角
 			if t.Turrent.Angle > angle {
-
-				// 目的让t.Turrent.Angle 往哪个方向旋转（肯定是往夹角小的方向移动，让炮台尽可能快的对准敌人）
+				// 目的让t.Turrent.Angle 往夹角小的方向移动，让炮台尽可能快的对准敌人
 				if t.Turrent.Angle-angle > 180 {
-					t.Turrent.Angle += 1
+					t.AddTurrentAngle(1)
 				} else {
-					t.Turrent.Angle -= 1
+					t.AddTurrentAngle(-1)
 				}
 			} else if t.Turrent.Angle < angle {
 
 				if angle-t.Turrent.Angle > 180 {
-					t.Turrent.Angle -= 1
+					t.AddTurrentAngle(-1)
 				} else {
-					t.Turrent.Angle += 1
+					t.AddTurrentAngle(1)
 				}
 			} else {
 				// 这里精准瞄准，立刻射击

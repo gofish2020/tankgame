@@ -27,7 +27,7 @@ func (g *Game) Restart() {
 	if utils.GameProgress == "prepare" {
 		g.tks = nil
 		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
-		g.AddEnemy(1)
+		g.AddEnemy(2)
 		utils.GameProgress = "play"
 		utils.KilledCount = 0
 
@@ -46,15 +46,16 @@ func (g *Game) AddEnemy(count int) {
 		case 2:
 			x = float64(monitor.ScreenWidth) - tank.MinXCoordinates
 		}
+
 		g.tks = append(g.tks, tank.NewTank(x, y, tank.TankTypeNPC))
 		g.incr++
 	}
-
-	// game.tks = append(game.tks, tank.NewTank(float64(ScreenWidth/2.0+100), float64(monitor.ScreenHeight/2.0+100), tank.TankTypeNPC))
 }
 func (g *Game) Update() error {
 
 	g.Restart()
+
+	// 绘制障碍物
 
 	// 播放 bgm
 	sound.PlayBGM()
@@ -62,7 +63,9 @@ func (g *Game) Update() error {
 	var playerPosition tank.TankPosition
 	var npcPositions []tank.TankPosition
 
+	// 检测存活的坦克
 	liveTanks := []*tank.Tank{}
+
 	for _, tk := range g.tks {
 		// 更新坦克
 		tk.Update()
@@ -76,19 +79,26 @@ func (g *Game) Update() error {
 			playerPosition.X = tk.X
 			playerPosition.Y = tk.Y
 			playerPosition.TK = tk
+			if tk.HealthPoints == 0 {
+				utils.GameProgress = "over"
+				sound.PlaySound("yiwai")
+				break
+			}
 		} else {
-			npcPositions = append(npcPositions, tank.TankPosition{X: tk.X, Y: tk.Y, TK: tk})
+			// 记录npc的位置
+			if tk.HealthPoints == 0 {
+				utils.KilledCount++
+				tk.DeathSound()
+			} else {
+				npcPositions = append(npcPositions, tank.TankPosition{X: tk.X, Y: tk.Y, TK: tk})
+			}
 		}
 
 		if tk.HealthPoints != 0 {
 			liveTanks = append(liveTanks, tk)
-		} else {
-			utils.KilledCount++
-			tk.DeathSound()
 		}
 	}
 
-	// 检测存活的坦克
 	g.tks = liveTanks
 
 	// 初始界面
@@ -99,7 +109,6 @@ func (g *Game) Update() error {
 		// 更新npc攻击范围内的坦克(为了做自动攻击)
 		for _, npcPosition := range npcPositions {
 
-			// 默认（无敌人）坦克
 			npcPosition.TK.Enemy = nil
 
 			x := playerPosition.X - npcPosition.X
@@ -113,17 +122,20 @@ func (g *Game) Update() error {
 				if angle < 0 {
 					angle += 360.0
 				}
-
 				startAngle, endAngle := npcPosition.TK.Turrent.Angle-npcPosition.TK.Turrent.RangeAngle, npcPosition.TK.Turrent.Angle+npcPosition.TK.Turrent.RangeAngle
+
 				if endAngle > 360 {
 					endAngle -= 360
 				}
 				if startAngle < 0 {
 					startAngle += 360
 				}
+
 				// 正常情况下 startAngle <= endAngle
-				if startAngle <= endAngle && startAngle <= angle && angle <= endAngle {
-					npcPosition.TK.Enemy = playerPosition.TK
+				if startAngle <= endAngle {
+					if startAngle <= angle && angle <= endAngle {
+						npcPosition.TK.Enemy = playerPosition.TK
+					}
 				} else {
 					// 如果处于 0 or 360的分割位置，startAngle > endAngle
 					if angle <= endAngle || angle >= startAngle {
@@ -131,6 +143,40 @@ func (g *Game) Update() error {
 					}
 				}
 			}
+
+			// 说明视野内没有敌人，自动旋转炮塔
+			if npcPosition.TK.Enemy == nil {
+				npcPosition.TK.AddTurrentAngle(2.0)
+
+				// 转向player的方向
+				angle := math.Atan2(y, x) * 180 / math.Pi
+				if angle < 0 {
+					angle += 360.0
+				}
+
+				//	npcPosition.TK.Angle 表示 坦克 和 x 轴的夹角
+				// angle 表示两个坦克连线 和 x轴的夹角
+				if npcPosition.TK.Angle > angle {
+					// 目的让t.Turrent.Angle 往夹角小的方向移动，让炮台尽可能快的对准敌人
+					if npcPosition.TK.Angle-angle > 180 {
+						npcPosition.TK.AddTankAngle(1.0)
+					} else {
+						npcPosition.TK.AddTankAngle(-1)
+					}
+				} else if npcPosition.TK.Angle < angle {
+
+					if angle-npcPosition.TK.Angle > 180 {
+						npcPosition.TK.AddTankAngle(-1)
+					} else {
+						npcPosition.TK.AddTankAngle(1)
+					}
+				}
+
+				// 移动坦克
+				npcPosition.TK.X += npcPosition.TK.ForwardSpeed * math.Cos(npcPosition.TK.Angle*math.Pi/180)
+				npcPosition.TK.Y += npcPosition.TK.ForwardSpeed * math.Sin(npcPosition.TK.Angle*math.Pi/180)
+			}
+
 		}
 	}
 
@@ -140,14 +186,11 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	// 清屏
-	screen.Clear()
-
+	//screen.Clear()
 	screen.Fill(color.RGBA{240, 222, 180, 215})
-
 	if utils.GameProgress == "init" {
 		tank.MenuDraw(screen)
 	}
-
 	// 绘制每个坦克
 	for _, tk := range g.tks {
 		tk.Draw(screen)
@@ -156,7 +199,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			tank.KeyPressDrawAroundTank(tk, screen)
 		}
 	}
-
 	tank.GameOverDraw(screen)
 }
 

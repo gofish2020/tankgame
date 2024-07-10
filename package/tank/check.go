@@ -30,11 +30,9 @@ func isProjectileCollisionsTank(x, y float64, t *Tank, origin *Tank) bool {
 	// if checkCollision1(Point{x, y}, vertices) {
 	// 	t.HealthPoints -= 50 // 扣除血条
 	// 	return true
-
 	// }
 
 	if checkCollision(Point{x, y}, t.X, t.Y, t.Width, t.Height, t.Angle) {
-
 		t.HealthPoints -= 50 // 扣除血条
 		return true
 	}
