@@ -35,7 +35,7 @@ func DrawNameList(screen *ebiten.Image) {
 
 	x, y := 0., 25.
 	for i, killeName := range killedNames {
-		if time.Since(killeName.updateTime) > 50*time.Second {
+		if time.Since(killeName.updateTime) > 5*time.Second {
 			killedNames = append(killedNames[:i], killedNames[i+1:]...) // 去掉
 			continue
 		}

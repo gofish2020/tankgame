@@ -15,40 +15,41 @@ type Game struct {
 	tks  []*tank.Tank
 	incr int16
 
-	objects []tank.Object
+	barriers []tank.Barrier
 }
+
+const defaultFreq = 50
 
 func NewGame() *Game {
 
 	game := Game{}
 
-	game.objects = append(game.objects, tank.Object{tank.Rect(0, 0, monitor.ScreenWidth, monitor.ScreenHeight)})
-	game.objects = append(game.objects, tank.Object{[]tank.Line{{100, 200, 600, 600}}})
-	game.objects = append(game.objects, tank.Object{tank.Rect(700, 700, 100, 50)})
 	game.tks = append(game.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
 	return &game
 }
 
-func (g *Game) Restart() {
-	if utils.GameProgress == "prepare" {
-		utils.GameLevel = 1
-		g.tks = nil
-		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
-		g.AddEnemy(2 * utils.GameLevel)
-		utils.GameProgress = "play"
-		utils.KilledCount = 0
+func (g *Game) initData() {
+	utils.GameLevel++
+	if utils.GameLevel > 4 {
+		utils.GameProgress = "pass" // 通关
+		return
+	}
+	g.barriers = tank.NewMap()
+	g.tks = nil
+	g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
+	g.AddEnemy(2 * utils.GameLevel)
+	utils.GameProgress = "play"
+}
 
-	} else if utils.GameProgress == "next" {
-		utils.GameLevel++
-		if utils.GameLevel > 4 {
-			utils.GameProgress = "pass" // 通关
-		} else {
-			g.tks = nil
-			g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
-			g.AddEnemy(2 * utils.GameLevel)
-			utils.GameProgress = "play"
-			//utils.KilledCount = 0
+func (g *Game) Restart() {
+	if utils.GameProgress == "prepare" || utils.GameProgress == "next" {
+
+		if utils.GameProgress == "prepare" {
+			utils.KilledCount = 0
+			utils.GameLevel = 0
 		}
+
+		g.initData()
 	}
 }
 
@@ -230,7 +231,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// 绘制战争迷雾
 	if utils.GameProgress == "play" {
-		tank.DrawRay(screen, x, y, g.objects)
+		tank.DrawRay(screen, x, y, g.barriers)
 	}
 
 	// 绘制死亡名单
