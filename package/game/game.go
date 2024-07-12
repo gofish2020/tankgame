@@ -98,6 +98,7 @@ func (g *Game) Update() error {
 			playerPosition.Y = tk.Y
 			playerPosition.TK = tk
 			if tk.HealthPoints == 0 {
+				tank.UpdateNameList(tk.Name)
 				utils.GameProgress = "over"
 				sound.PlaySound("yiwai")
 				break
@@ -105,6 +106,7 @@ func (g *Game) Update() error {
 		} else {
 			// 记录npc的位置
 			if tk.HealthPoints == 0 {
+				tank.UpdateNameList(tk.Name)
 				utils.KilledCount++
 				tk.DeathSound()
 			} else {
@@ -222,7 +224,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		// 绘制按键
 		if tk.TkType == tank.TankTypePlayer {
 			tank.KeyPressDrawAroundTank(tk, screen)
-			x, y = tk.X, tk.Y
+			x, y = tk.X, tk.Y // 以player的视角
 		}
 	}
 
@@ -230,6 +232,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	if utils.GameProgress == "play" {
 		tank.DrawRay(screen, x, y, g.objects)
 	}
+
+	// 绘制死亡名单
+	tank.DrawNameList(screen)
 
 	tank.GameOverDraw(screen)
 }

@@ -71,3 +71,5 @@ func KeyPressDrawAroundTank(t *Tank, screen *ebiten.Image) {
 		Source: mplusNormalFont,
 		Size:   20}, op)
 }
+
+

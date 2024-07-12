@@ -1,7 +1,7 @@
 package utils
 
 var (
-	GameProgress = "init" // init  prepare next play over pass
+	GameProgress = "play" // init  prepare next play over pass
 	GameLevel    = 1      // 游戏关卡
 	KilledCount  = 0
 )
