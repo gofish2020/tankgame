@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
+	"sort"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/gofish2020/tankgame/package/utils/sound"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 var (
@@ -346,10 +348,10 @@ func (t *Tank) Update() {
 				}
 			} else {
 				// 这里精准瞄准，立刻射击
-				//t.shot()
+				t.shot()
 			}
 
-			t.shot() // 不管是否瞄准，就射击
+			//t.shot() // 不管是否瞄准，就射击
 		}
 	}
 
@@ -358,7 +360,7 @@ func (t *Tank) Update() {
 
 }
 
-// 更新坦克的边界
+// 更新坦克的四个顶点边界
 func (t *Tank) updateTankCollisionBox() {
 
 	// 用来作为坦克四个角的初始坐标
@@ -488,12 +490,14 @@ var (
 
 // 绘制坦克各个元素
 func (t *Tank) Draw(screen *ebiten.Image) {
+
 	t.drawTank(screen)
 	t.drawTurrent(screen)
 	t.drawHealthBar(screen)
 	t.drawReload(screen)
 	t.drawAttackCircle(screen)
 	t.drawProjectile(screen)
+
 }
 
 // 绘制炮弹
@@ -543,7 +547,7 @@ func (tk *Tank) drawProjectile(screen *ebiten.Image) {
 
 func (tk *Tank) drawAttackCircle(screen *ebiten.Image) {
 
-	clr := color.RGBA{124, 252, 0, 100}
+	clr := color.RGBA{255, 248, 220, 100}
 	if tk.Enemy != nil {
 		clr = color.RGBA{255, 69, 0, 100}
 	}
@@ -648,4 +652,145 @@ func (tk *Tank) drawReload(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(tk.X-25.5, tk.Y+35)
 	screen.DrawImage(newImage, op)
+}
+
+////////////////////////// 光源照射 （阴影计算）////////////////////////
+
+var (
+	// 阴影
+	shadowImage   = ebiten.NewImage(int(monitor.ScreenWidth), int(monitor.ScreenHeight))
+	triangleImage = ebiten.NewImage(int(monitor.ScreenWidth), int(monitor.ScreenHeight))
+)
+
+func init() {
+	triangleImage.Fill(color.White)
+}
+
+func DrawRay(screen *ebiten.Image, x, y float64, objects []Object) {
+
+	shadowImage.Fill(color.Black)
+	rays := rayCasting(float64(x), float64(y), objects)
+	// Subtract ray triangles from shadow
+	opt := &ebiten.DrawTrianglesOptions{}
+	opt.Address = ebiten.AddressRepeat
+	opt.Blend = ebiten.BlendSourceOut
+	for i, line := range rays {
+		nextLine := rays[(i+1)%len(rays)]
+		// Draw triangle of area between rays
+		v := rayVertices(float64(x), float64(y), nextLine.X2, nextLine.Y2, line.X2, line.Y2)
+		shadowImage.DrawTriangles(v, []uint16{0, 1, 2}, triangleImage, opt)
+	}
+
+	op := &ebiten.DrawImageOptions{}
+	screen.DrawImage(shadowImage, op)
+
+	// 绘制墙体
+
+	// Draw walls
+	for _, obj := range objects {
+		for _, w := range obj.Walls {
+			vector.StrokeLine(screen, float32(w.X1), float32(w.Y1), float32(w.X2), float32(w.Y2), 1, color.RGBA{255, 0, 0, 255}, true)
+		}
+	}
+
+}
+
+// intersection 计算给定的两条之间的交点
+func intersection(l1, l2 Line) (float64, float64, bool) {
+	// https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
+	denom := (l1.X1-l1.X2)*(l2.Y1-l2.Y2) - (l1.Y1-l1.Y2)*(l2.X1-l2.X2)
+	tNum := (l1.X1-l2.X1)*(l2.Y1-l2.Y2) - (l1.Y1-l2.Y1)*(l2.X1-l2.X2)
+	uNum := -((l1.X1-l1.X2)*(l1.Y1-l2.Y1) - (l1.Y1-l1.Y2)*(l1.X1-l2.X1))
+
+	if denom == 0 {
+		return 0, 0, false
+	}
+
+	t := tNum / denom
+	if t > 1 || t < 0 {
+		return 0, 0, false
+	}
+
+	u := uNum / denom
+	if u > 1 || u < 0 {
+		return 0, 0, false
+	}
+
+	x := l1.X1 + t*(l1.X2-l1.X1)
+	y := l1.Y1 + t*(l1.Y2-l1.Y1)
+	return x, y, true
+}
+
+func newRay(x, y, length, angle float64) Line {
+	return Line{
+		X1: x,
+		Y1: y,
+		X2: x + length*math.Cos(angle),
+		Y2: y + length*math.Sin(angle),
+	}
+}
+
+// rayCasting 返回从点 cx, cy 出发并与对象相交的直线切片
+func rayCasting(cx, cy float64, objects []Object) []Line {
+	const rayLength = 10000 // something large enough to reach all objects
+
+	var rays []Line
+	// 遍历每个对象
+	for _, obj := range objects {
+		// 对象的点集合
+		for _, p := range obj.points() {
+
+			// cx/cy 和 p[0],p[1] 构成一个线段
+			l := Line{cx, cy, p[0], p[1]}
+			// 从 cx/cy 出发到 p[0]/p[1] 构成的线段和 x轴正方向的夹角
+			angle := l.angle()
+
+			for _, offset := range []float64{-0.005, 0.005} {
+				points := [][2]float64{}
+
+				// 从点 cx,cy 发出一束光，长度为rayLength，角度为 angle +/- 0.005
+				ray := newRay(cx, cy, rayLength, angle+offset)
+
+				// 将光线ray 和 所有对象的所有的边，求交点
+				for _, o := range objects { // 所有的对象
+
+					for _, wall := range o.Walls {
+						if px, py, ok := intersection(ray, wall); ok { // 判断两个线段是否有交点
+							points = append(points, [2]float64{px, py}) // 记录交点
+						}
+					}
+				}
+
+				// 只保留 和 cx/cy 距离最近的交点
+				min := math.Inf(1) // 正无穷
+				minI := -1
+				for i, p := range points {
+					d2 := (cx-p[0])*(cx-p[0]) + (cy-p[1])*(cy-p[1]) // 点 cx/cy 和 p[0]/p[1] 之间的距离的平方（勾股定理）
+					if d2 < min {
+						min = d2
+						minI = i
+					}
+				}
+
+				if minI != -1 {
+					// 记录距离 cx/cy 和 最近的点，组成的线段
+					rays = append(rays, Line{cx, cy, points[minI][0], points[minI][1]})
+				}
+			}
+		}
+	}
+
+	// Sort rays based on angle, otherwise light triangles will not come out right
+	sort.Slice(rays, func(i int, j int) bool {
+		return rays[i].angle() < rays[j].angle()
+	})
+	return rays
+}
+
+func rayVertices(x1, y1, x2, y2, x3, y3 float64) []ebiten.Vertex {
+	return []ebiten.Vertex{
+		{DstX: float32(x1), DstY: float32(y1), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(x2), DstY: float32(y2), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(x3), DstY: float32(y3), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
 }

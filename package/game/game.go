@@ -14,11 +14,17 @@ import (
 type Game struct {
 	tks  []*tank.Tank
 	incr int16
+
+	objects []tank.Object
 }
 
 func NewGame() *Game {
 
 	game := Game{}
+
+	game.objects = append(game.objects, tank.Object{tank.Rect(0, 0, monitor.ScreenWidth, monitor.ScreenHeight)})
+	game.objects = append(game.objects, tank.Object{[]tank.Line{{100, 200, 600, 600}}})
+	game.objects = append(game.objects, tank.Object{tank.Rect(700, 700, 100, 50)})
 	game.tks = append(game.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
 	return &game
 }
@@ -63,12 +69,11 @@ func (g *Game) AddEnemy(count int) {
 		g.incr++
 	}
 }
+
 func (g *Game) Update() error {
 
 	enemyCount := 0
 	g.Restart()
-
-	// 绘制障碍物
 
 	// 播放 bgm
 	sound.PlayBGM()
@@ -195,7 +200,7 @@ func (g *Game) Update() error {
 	}
 
 	if utils.GameProgress == "play" && enemyCount == 0 { // 全部消灭
-		utils.GameProgress = "next"
+		utils.GameProgress = "next" // 下一关
 	}
 
 	tank.GameOverUpdate()
@@ -203,20 +208,29 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	// 清屏
-	//screen.Clear()
+
 	screen.Fill(color.RGBA{240, 222, 180, 215})
+
 	if utils.GameProgress == "init" || utils.GameProgress == "pass" {
 		tank.MenuDraw(screen)
 	}
+
+	x, y := 0.0, 0.0
 	// 绘制每个坦克
 	for _, tk := range g.tks {
 		tk.Draw(screen)
 		// 绘制按键
 		if tk.TkType == tank.TankTypePlayer {
 			tank.KeyPressDrawAroundTank(tk, screen)
+			x, y = tk.X, tk.Y
 		}
 	}
+
+	// 绘制战争迷雾
+	if utils.GameProgress == "play" {
+		tank.DrawRay(screen, x, y, g.objects)
+	}
+
 	tank.GameOverDraw(screen)
 }
 
