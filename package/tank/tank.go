@@ -635,32 +635,20 @@ func init() {
 	triangleImage.Fill(color.White)
 }
 
-func DrawWarFog(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
+func DrawWarFogAndBarriers(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
 
-	// shadowImage.Fill(color.Black)
+	if !utils.FullMap {
+		drawFog(screen, x, y, barriers)
+	}
 
-	// // x,y 相当于光源的位置
-	// rays := rayCasting(float64(x), float64(y), barriers)
+	drawBarrier(screen, x, y, barriers)
 
-	// opt := &ebiten.DrawTrianglesOptions{}
-	// opt.Address = ebiten.AddressRepeat
-	// opt.Blend = ebiten.BlendSourceOut
-	// for i, line := range rays {
-	// 	nextLine := rays[(i+1)%len(rays)]
-	// 	// 用三个点构成一个三角形
-	// 	v := rayVertices(float64(x), float64(y), nextLine.X2, nextLine.Y2, line.X2, line.Y2)
-	// 	// 裁剪为白色
-	// 	shadowImage.DrawTriangles(v, []uint16{0, 1, 2}, triangleImage, opt)
-	// }
+}
 
-	// // 绘制迷雾最终效果
-	// op := &ebiten.DrawImageOptions{}
-	// op.ColorScale.ScaleAlpha(1.0)
-	// screen.DrawImage(shadowImage, op)
-
+func drawBarrier(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
 	// 绘制障碍物
 	for _, barrier := range barriers {
-		if barrier.Border || barrier.Health == 0 {
+		if barrier.BarrierTypeVal == BarrierTypeNone || barrier.Health == 0 {
 			continue
 		}
 		originalImg, _, _ := ebitenutil.NewImageFromFile(barrier.Image.Path)
@@ -672,7 +660,28 @@ func DrawWarFog(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
 		options.GeoM.Translate(barrier.X, barrier.Y)
 		screen.DrawImage(subImg, options)
 	}
+}
+func drawFog(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
+	shadowImage.Fill(color.Black)
 
+	// x,y 相当于光源的位置
+	rays := rayCasting(float64(x), float64(y), barriers)
+
+	opt := &ebiten.DrawTrianglesOptions{}
+	opt.Address = ebiten.AddressRepeat
+	opt.Blend = ebiten.BlendSourceOut
+	for i, line := range rays {
+		nextLine := rays[(i+1)%len(rays)]
+		// 用三个点构成一个三角形
+		v := rayVertices(float64(x), float64(y), nextLine.X2, nextLine.Y2, line.X2, line.Y2)
+		// 裁剪为白色
+		shadowImage.DrawTriangles(v, []uint16{0, 1, 2}, triangleImage, opt)
+	}
+
+	// 绘制迷雾最终效果
+	op := &ebiten.DrawImageOptions{}
+	op.ColorScale.ScaleAlpha(1.0)
+	screen.DrawImage(shadowImage, op)
 }
 
 // intersection 计算给定的两条之间的交点

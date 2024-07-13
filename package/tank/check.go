@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
+	"github.com/gofish2020/tankgame/package/utils"
 )
 
 type Point struct {
@@ -22,7 +24,7 @@ func (t *Tank) CheckCollisions(tks []*Tank, barriers []*Barrier) {
 		if t.TkType == TankTypeNPC { // 避免npc tank 卡住
 
 			// Check if enough time has passed since the last collision
-			if time.Since(t.LastCollisionTime) > time.Second {
+			if time.Since(t.LastCollisionTime) > 1*time.Second {
 				// Randomly turn left or right
 				if rand.Intn(2) == 0 {
 					t.Angle += 90.0
@@ -48,7 +50,7 @@ func (t *Tank) hasActorCollided(barriers []*Barrier) bool {
 
 	for _, barrier := range barriers {
 		// 前提障碍物时可以被碰撞的（并且血量不为0）
-		if !barrier.Border && barrier.Collidable && barrier.Health > 0 {
+		if barrier.BarrierTypeVal != BarrierTypeNone && barrier.Collidable && barrier.Health > 0 {
 
 			// 获取障碍物的四个顶点
 			objectVectors := barrier.getBarrierCollisionVectors()
@@ -142,21 +144,19 @@ func (t *Tank) checkProjectileCollisionWithTankOrBarriers(tks []*Tank, barriers 
 	for _, projectile := range t.Projectiles {
 		for _, tk := range tks {
 
-			if !projectile.IsExplode { // 子弹正常情况下
+			if !projectile.IsExplode { // 坦克
 				if isProjectileCollisionsTank(projectile.X, projectile.Y, tk, t) {
 					projectile.IsExplode = true
+					return
 				}
 			}
 		}
 
-		if projectile.IsExplode { // 已碰撞
-			return
-		}
-
 		for _, barrier := range barriers {
-			if !projectile.IsExplode { // 子弹正常情况下
+			if !projectile.IsExplode { // 障碍物
 				if isProjectileCollisionsBarrier(projectile.X, projectile.Y, barrier) {
 					projectile.IsExplode = true
+					return
 				}
 			}
 		}
@@ -165,7 +165,7 @@ func (t *Tank) checkProjectileCollisionWithTankOrBarriers(tks []*Tank, barriers 
 
 func isProjectileCollisionsBarrier(x, y float64, barrier *Barrier) bool {
 
-	if !barrier.Border && barrier.Destructible && barrier.Health > 0 {
+	if barrier.BarrierTypeVal != BarrierTypeNone && barrier.Destructible && barrier.Health > 0 {
 
 		// 障碍物的范围
 		left := barrier.X
@@ -176,7 +176,7 @@ func isProjectileCollisionsBarrier(x, y float64, barrier *Barrier) bool {
 		// 在障碍物内
 		if x >= left && x <= right && y >= top && y <= bottom {
 
-			if barrier.Health != math.MaxInt { // 表示砖块
+			if barrier.BarrierTypeVal == BarrierTypeBrick { // 表示砖块
 				//裁剪
 				dx := math.Min(right-x, x-left) // 距离左右的最短距离
 				dy := math.Min(bottom-y, y-top) // 距离上下的最短距离
@@ -194,6 +194,9 @@ func isProjectileCollisionsBarrier(x, y float64, barrier *Barrier) bool {
 						changeBarrier(barrier, "b")
 					}
 				}
+			} else if barrier.BarrierTypeVal == BarrierTypeBug {
+				barrier.Health = 0
+				utils.FullMap = !utils.FullMap
 			}
 
 			return true

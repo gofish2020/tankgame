@@ -158,7 +158,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// 绘制战争迷雾 + 障碍物
 	if utils.GameProgress == "play" {
-		tank.DrawWarFog(screen, x, y, g.barriers)
+		tank.DrawWarFogAndBarriers(screen, x, y, g.barriers)
 	}
 
 	// 绘制死亡名单
