@@ -1,14 +1,21 @@
-# Golang 实现小游戏
+# Golang 实现坦克世界
 
 
 项目地址: https://github.com/gofish2020/tankgame 欢迎Fork && Star
 
 
 ## 游戏效果
+
 本项目基于游戏引擎 `Ebitengine` 开发，这里有很多的实例 https://ebiten-zh.vercel.app/examples/ 便于边学边用
 
 
 
+![](readme/snapshoot.gif)
+
+
+程序下载到本地，直接 `go run main.go`即可看效果。
+- 开发使用的`go1.20`版本
+- 如果你是`Linux` or `MacOS`需要安装 `C`语言编译器，安装教程 https://ebiten-zh.vercel.app/documents/install.html
 
 ## 代码结构
 
@@ -41,11 +48,13 @@ tankgame
 
 ```
 
-代码中有大量注释，直接看代码即可
+代码中有大量注释,直接从 `type Game struct `结构体中的 `Update`（负责数据的更新） 和`Draw`（负责界面绘制）两个函数开始看
 
 
 
 ## 数学知识补充
+
+这些做碰撞检测需要用的知识点
 
 **旋转矩阵**
 用来计算坐标点经过旋转后的新的坐标
