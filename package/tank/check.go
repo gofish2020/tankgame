@@ -1,12 +1,14 @@
 package tank
 
+import "math"
+
 type Point struct {
 	X, Y float64
 }
 
-// 坦克 + 子弹碰撞检测
+// 坦克 + 子弹碰撞检测 / 障碍物 + 子弹 碰撞检测
 
-func (t *Tank) CheckCollisions(tks []*Tank) {
+func (t *Tank) CheckCollisions(tks []*Tank, barriers []*Barrier) {
 
 	for _, projectile := range t.Projectiles {
 		for _, tk := range tks {
@@ -17,7 +19,58 @@ func (t *Tank) CheckCollisions(tks []*Tank) {
 				}
 			}
 		}
+
+		if projectile.IsExplode { // 已碰撞
+			return
+		}
+
+		for _, barrier := range barriers {
+			if !projectile.IsExplode { // 子弹正常情况下
+				if isProjectileCollisionsBarrier(projectile.X, projectile.Y, barrier) {
+					projectile.IsExplode = true
+				}
+			}
+		}
 	}
+}
+
+func isProjectileCollisionsBarrier(x, y float64, barrier *Barrier) bool {
+
+	if !barrier.Border && barrier.Destructible && barrier.Health > 0 {
+
+		// 障碍物的范围
+		left := barrier.X
+		right := (barrier.X + barrier.Width)
+		top := barrier.Y
+		bottom := (barrier.Y + barrier.Height)
+
+		// 在障碍物内
+		if x >= left && x <= right && y >= top && y <= bottom {
+
+			if barrier.Health != math.MaxInt { // 表示砖块
+				//裁剪
+				dx := math.Min(right-x, x-left) // 距离左右的最短距离
+				dy := math.Min(bottom-y, y-top) // 距离上下的最短距离
+
+				if dx < dy { // 说明距离左右的最小值 比距离上下的最小值【更小】
+					if x-left < right-x { // 更靠近left
+						changeBarrier(barrier, "l")
+					} else { // 更靠近 right
+						changeBarrier(barrier, "r")
+					}
+				} else {
+					if y-top < bottom-y { // top
+						changeBarrier(barrier, "t")
+					} else { // bottom
+						changeBarrier(barrier, "b")
+					}
+				}
+			}
+
+			return true
+		}
+	}
+	return false
 }
 
 func isProjectileCollisionsTank(x, y float64, t *Tank, origin *Tank) bool {

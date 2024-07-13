@@ -665,7 +665,7 @@ func init() {
 	triangleImage.Fill(color.White)
 }
 
-func DrawRay(screen *ebiten.Image, x, y float64, barriers []Barrier) {
+func DrawWarFog(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
 
 	shadowImage.Fill(color.Black)
 	rays := rayCasting(float64(x), float64(y), barriers)
@@ -688,10 +688,10 @@ func DrawRay(screen *ebiten.Image, x, y float64, barriers []Barrier) {
 
 	for _, barrier := range barriers {
 
-		if barrier.Border {
+		if barrier.Border || barrier.Health == 0 {
 			continue
 		}
-		
+
 		originalImg, _, _ := ebitenutil.NewImageFromFile(barrier.Image.Path)
 		// 对图片 originalImg 进行裁剪
 		subImg := originalImg.SubImage(image.Rect(barrier.Image.X, barrier.Image.Y,
@@ -705,7 +705,8 @@ func DrawRay(screen *ebiten.Image, x, y float64, barriers []Barrier) {
 }
 
 // intersection 计算给定的两条之间的交点
-func intersection(l1, l2 Line) (float64, float64, bool) {
+func intersection(l1, l2 line) (float64, float64, bool) {
+
 	// https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
 	denom := (l1.X1-l1.X2)*(l2.Y1-l2.Y2) - (l1.Y1-l1.Y2)*(l2.X1-l2.X2)
 	tNum := (l1.X1-l2.X1)*(l2.Y1-l2.Y2) - (l1.Y1-l2.Y1)*(l2.X1-l2.X2)
@@ -730,8 +731,8 @@ func intersection(l1, l2 Line) (float64, float64, bool) {
 	return x, y, true
 }
 
-func newRay(x, y, length, angle float64) Line {
-	return Line{
+func newRay(x, y, length, angle float64) line {
+	return line{
 		X1: x,
 		Y1: y,
 		X2: x + length*math.Cos(angle),
@@ -740,53 +741,60 @@ func newRay(x, y, length, angle float64) Line {
 }
 
 // rayCasting 返回从点 cx, cy 出发并与对象相交的直线切片
-func rayCasting(cx, cy float64, barriers []Barrier) []Line {
+func rayCasting(cx, cy float64, barriers []*Barrier) []line {
 	const rayLength = 10000 // something large enough to reach all objects
 
-	var rays []Line
+	var rays []line
 
 	for _, bar := range barriers {
-		for _, obj := range bar.Objects {
-			// 遍历每个对象
-			// 对象的点集合
-			for _, p := range obj.points() {
-				// cx/cy 和 p[0],p[1] 构成一个线段
-				l := Line{cx, cy, p[0], p[1]}
-				// 从 cx/cy 出发到 p[0]/p[1] 构成的线段和 x轴正方向的夹角
-				angle := l.angle()
 
-				for _, offset := range []float64{-0.005, 0.005} {
-					points := [][2]float64{}
+		if bar.Health > 0 { // 障碍物有血
 
-					// 从点 cx,cy 发出一束光，长度为rayLength，角度为 angle +/- 0.005
-					ray := newRay(cx, cy, rayLength, angle+offset)
+			for _, obj := range bar.Objects {
+				// 遍历每个对象
+				// 对象的点集合
+				for _, p := range obj.points() {
+					// cx/cy 和 p[0],p[1] 构成一个线段
+					l := line{cx, cy, p[0], p[1]}
+					// 从 cx/cy 出发到 p[0]/p[1] 构成的线段和 x轴正方向的夹角
+					angle := l.angle()
 
-					// 将光线ray 和 所有对象的所有的边，求交点
-					for _, bar := range barriers { // 所有的对象
-						for _, o := range bar.Objects {
-							for _, wall := range o.Walls {
-								if px, py, ok := intersection(ray, wall); ok { // 判断两个线段是否有交点
-									points = append(points, [2]float64{px, py}) // 记录交点
+					for _, offset := range []float64{-0.005, 0.005} {
+						points := [][2]float64{}
+
+						// 从点 cx,cy 发出一束光，长度为rayLength，角度为 angle +/- 0.005
+						ray := newRay(cx, cy, rayLength, angle+offset)
+
+						// 将光线ray 和 所有对象的所有的边，求交点
+						for _, bar := range barriers { // 所有的对象
+
+							if bar.Health > 0 { // 障碍物有血
+
+								for _, o := range bar.Objects {
+									for _, wall := range o.Walls {
+										if px, py, ok := intersection(ray, wall); ok { // 判断两个线段是否有交点
+											points = append(points, [2]float64{px, py}) // 记录交点
+										}
+									}
 								}
 							}
 						}
 
-					}
-
-					// 只保留 和 cx/cy 距离最近的交点
-					min := math.Inf(1) // 正无穷
-					minI := -1
-					for i, p := range points {
-						d2 := (cx-p[0])*(cx-p[0]) + (cy-p[1])*(cy-p[1]) // 点 cx/cy 和 p[0]/p[1] 之间的距离的平方（勾股定理）
-						if d2 < min {
-							min = d2
-							minI = i
+						// 只保留 和 cx/cy 距离最近的交点
+						min := math.Inf(1) // 正无穷
+						minI := -1
+						for i, p := range points {
+							d2 := (cx-p[0])*(cx-p[0]) + (cy-p[1])*(cy-p[1]) // 点 cx/cy 和 p[0]/p[1] 之间的距离的平方（勾股定理）
+							if d2 < min {
+								min = d2
+								minI = i
+							}
 						}
-					}
 
-					if minI != -1 {
-						// 记录距离 cx/cy 和 最近的点，组成的线段
-						rays = append(rays, Line{cx, cy, points[minI][0], points[minI][1]})
+						if minI != -1 {
+							// 记录距离 cx/cy 和 最近的点，组成的线段
+							rays = append(rays, line{cx, cy, points[minI][0], points[minI][1]})
+						}
 					}
 				}
 			}

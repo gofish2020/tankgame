@@ -1,10 +1,11 @@
 package utils
 
 var (
-	GameProgress = "prepare" // init  prepare next play over pass
+	GameProgress = "prepare" // init 初始界面  prepare 数据准备中  next 下一关  play 游戏进行中 over 游戏over  pass 通关
 	GameLevel    = 0         // 游戏关卡
 	KilledCount  = 0
 )
+
 
 type TankLevel struct {
 	Speed       float64

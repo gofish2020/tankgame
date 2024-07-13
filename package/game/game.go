@@ -15,7 +15,7 @@ type Game struct {
 	tks  []*tank.Tank
 	incr int16
 
-	barriers []tank.Barrier
+	barriers []*tank.Barrier
 }
 
 const defaultFreq = 50
@@ -79,6 +79,7 @@ func (g *Game) Update() error {
 	// 播放 bgm
 	sound.PlayBGM()
 
+	// 分离 player 和 npc 坦克
 	var playerPosition tank.TankPosition
 	var npcPositions []tank.TankPosition
 
@@ -89,7 +90,7 @@ func (g *Game) Update() error {
 		// 更新坦克
 		tk.Update()
 		// 检测子弹碰撞
-		tk.CheckCollisions(g.tks)
+		tk.CheckCollisions(g.tks, g.barriers)
 		// 限制坦克运动范围
 		tk.LimitTankRange(tank.MinXCoordinates, tank.MinYCoordinates, float64(monitor.ScreenWidth)-30, float64(monitor.ScreenHeight)-30)
 
@@ -131,7 +132,7 @@ func (g *Game) Update() error {
 		// 更新npc攻击范围内的坦克(为了做自动攻击)
 		for _, npcPosition := range npcPositions {
 
-			npcPosition.TK.Enemy = nil
+			npcPosition.TK.Enemy = nil // 默认无敌人
 
 			x := playerPosition.X - npcPosition.X
 			y := playerPosition.Y - npcPosition.Y
@@ -231,7 +232,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	// 绘制战争迷雾
 	if utils.GameProgress == "play" {
-		tank.DrawRay(screen, x, y, g.barriers)
+		tank.DrawWarFog(screen, x, y, g.barriers)
 	}
 
 	// 绘制死亡名单
