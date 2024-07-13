@@ -145,6 +145,9 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		Angle:         270.0,
 		RotationSpeed: 2.0,
 
+		ForwardSpeed:  5.0,
+		BackwardSpeed: 3.5,
+
 		ReloadTimer:    0,
 		ReloadMaxTimer: 100,
 		ReloadSpeed:    1.0,
@@ -157,13 +160,10 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		HealthBarWidth:  50,
 		HealthBarHeight: 5,
 
-		ForwardSpeed:  5.0,
-		BackwardSpeed: 3.5,
-
 		Turrent: Turret{
 			Angle:           270.0, // 默认指向上
 			ImagePath:       "resource/green_tank_turret.png",
-			RotationSpeed:   1.0,
+			RotationSpeed:   2.0,
 			ProjectileSpeed: 30.0,
 		},
 
@@ -640,7 +640,7 @@ func DrawWarFogAndBarriers(screen *ebiten.Image, x, y float64, barriers []*Barri
 	if !utils.FullMap {
 		drawFog(screen, x, y, barriers)
 	}
-
+	// 绘制障碍物
 	drawBarrier(screen, x, y, barriers)
 
 }

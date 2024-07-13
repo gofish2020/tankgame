@@ -230,12 +230,12 @@ func createMap(x1, y1, x2, y2 float64, freq int) []*Barrier {
 			if typeVal != BarrierTypeNone {
 				if typeVal == BarrierTypeBug {
 					if bugCount > 0 {
-						barriers = append(barriers, addBarrier(x, y, typeVal))
 						bugCount--
+					} else {
+						typeVal = BarrierTypeBrick
 					}
-				} else {
-					barriers = append(barriers, addBarrier(x, y, typeVal))
 				}
+				barriers = append(barriers, addBarrier(x, y, typeVal))
 			}
 		}
 	}

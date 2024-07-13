@@ -1,11 +1,12 @@
 package utils
 
 var (
-	GameProgress = "prepare" // init 初始界面  prepare 数据准备中  next 下一关  play 游戏进行中 over 游戏over  pass 通关
-	GameLevel    = 0         // 游戏关卡
+	GameProgress = "init" // init 初始界面  prepare 数据准备中  next 下一关  play 游戏进行中 over 游戏over  pass 通关
+	GameLevel    = 0      // 游戏关卡
 	KilledCount  = 0
 
-	FullMap = false
+	MaxGameLevel = 4 // 最多的关卡数
+	FullMap      = false
 )
 
 type TankLevel struct {

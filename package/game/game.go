@@ -29,11 +29,13 @@ func (g *Game) Restart() {
 		if utils.GameProgress == "prepare" {
 			utils.KilledCount = 0
 			utils.GameLevel = 0
+			utils.FullMap = false
 		}
 
 		utils.GameLevel++
-		if utils.GameLevel > 4 {
+		if utils.GameLevel > utils.MaxGameLevel {
 			utils.GameProgress = "pass" // 通关
+			g.barriers = nil
 			return
 		}
 		// 新地图
@@ -42,6 +44,7 @@ func (g *Game) Restart() {
 		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
 		g.AddEnemy(2 * utils.GameLevel)
 		utils.GameProgress = "play"
+
 	}
 }
 
