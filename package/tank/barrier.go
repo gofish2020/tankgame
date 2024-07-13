@@ -20,15 +20,17 @@ type object struct {
 }
 
 func (o object) points() [][2]float64 {
-	// Get one of the endpoints for all segments,
-	// + the startpoint of the first one, for non-closed paths
+
 	var points [][2]float64
-	for _, wall := range o.Walls {
+	for _, wall := range o.Walls { // 每个线的 X2,Y2
 		points = append(points, [2]float64{wall.X2, wall.Y2})
 	}
+
+	// 最后闭合最后一点
 	p := [2]float64{o.Walls[0].X1, o.Walls[0].Y1}
+	// 避免重复
 	if p[0] != points[len(points)-1][0] && p[1] != points[len(points)-1][1] {
-		points = append(points, [2]float64{o.Walls[0].X1, o.Walls[0].Y1})
+		points = append(points, p)
 	}
 	return points
 }
@@ -73,6 +75,16 @@ type Barrier struct {
 	Collidable   bool // 是否可碰撞
 
 	Health int
+}
+
+func (b Barrier) getBarrierCollisionVectors() []Point {
+	vectors := []Point{
+		{b.X, b.Y},
+		{b.X + b.Width, b.Y},
+		{b.X + b.Width, b.Y + b.Height},
+		{b.X, b.Y + b.Height},
+	}
+	return vectors
 }
 
 func addBoard(x, y float64) *Barrier {
@@ -148,6 +160,8 @@ func addBarrier(x, y float64, barrierType string) *Barrier {
 	return &b
 }
 
+const padding = 150
+
 // 创建地图
 func NewMap() []*Barrier {
 
@@ -163,7 +177,7 @@ func NewMap() []*Barrier {
 		freq = 10
 	}
 
-	return createMap(100, 100, monitor.ScreenWidth-100, monitor.ScreenHeight-100, freq)
+	return createMap(padding, padding, monitor.ScreenWidth-padding, monitor.ScreenHeight-padding, freq)
 }
 
 // x1, y1, x2, y2 绘制障碍物的范围 freq 障碍物出现的可能性

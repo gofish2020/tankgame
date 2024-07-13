@@ -6,39 +6,38 @@ var (
 	KilledCount  = 0
 )
 
-
 type TankLevel struct {
-	Speed       float64
-	RotateSpeed float64
+	TankSpeed          float64
+	TurrentRotateSpeed float64
 }
 
 var (
 	TankLevels = []TankLevel{
-		{Speed: 0.2, RotateSpeed: 1.0},
-		{Speed: 0.2, RotateSpeed: 2.0},
-		{Speed: 0.2, RotateSpeed: 3.0},
-		{Speed: 0.2, RotateSpeed: 4.0},
-		{Speed: 0.2, RotateSpeed: 5.0},
-		{Speed: 0.2, RotateSpeed: 6.0},
+		{TankSpeed: 0.4, TurrentRotateSpeed: 1.0},
+		{TankSpeed: 0.4, TurrentRotateSpeed: 2.0},
+		{TankSpeed: 0.4, TurrentRotateSpeed: 3.0},
+		{TankSpeed: 0.4, TurrentRotateSpeed: 4.0},
+		{TankSpeed: 0.4, TurrentRotateSpeed: 5.0},
+		{TankSpeed: 0.4, TurrentRotateSpeed: 6.0},
 
-		{Speed: 0.5, RotateSpeed: 1.0},
-		{Speed: 0.5, RotateSpeed: 2.0},
-		{Speed: 5.0, RotateSpeed: 3.0},
-		{Speed: 0.5, RotateSpeed: 4.0},
-		{Speed: 0.5, RotateSpeed: 5.0},
-		{Speed: 0.5, RotateSpeed: 6.0},
+		{TankSpeed: 1.0, TurrentRotateSpeed: 1.0},
+		{TankSpeed: 1.0, TurrentRotateSpeed: 2.0},
+		{TankSpeed: 1.0, TurrentRotateSpeed: 3.0},
+		{TankSpeed: 1.0, TurrentRotateSpeed: 4.0},
+		{TankSpeed: 1.0, TurrentRotateSpeed: 5.0},
+		{TankSpeed: 1.0, TurrentRotateSpeed: 6.0},
 
-		{Speed: 1.0, RotateSpeed: 1.0},
-		{Speed: 1.0, RotateSpeed: 2.0},
-		{Speed: 1.0, RotateSpeed: 3.0},
-		{Speed: 1.0, RotateSpeed: 4.0},
-		{Speed: 1.0, RotateSpeed: 5.0},
-		{Speed: 1.0, RotateSpeed: 6.0},
+		{TankSpeed: 1.5, TurrentRotateSpeed: 1.0},
+		{TankSpeed: 1.5, TurrentRotateSpeed: 2.0},
+		{TankSpeed: 1.5, TurrentRotateSpeed: 3.0},
+		{TankSpeed: 1.5, TurrentRotateSpeed: 4.0},
+		{TankSpeed: 1.5, TurrentRotateSpeed: 5.0},
+		{TankSpeed: 1.5, TurrentRotateSpeed: 6.0},
 
-		{Speed: 2.0, RotateSpeed: 10.0},
-		{Speed: 3.0, RotateSpeed: 10.0},
+		{TankSpeed: 2.0, TurrentRotateSpeed: 10.0},
+		{TankSpeed: 3.0, TurrentRotateSpeed: 10.0},
 
-		{Speed: 5.0, RotateSpeed: 10.0},
-		{Speed: 8.0, RotateSpeed: 1.0},
+		{TankSpeed: 5.0, TurrentRotateSpeed: 10.0},
+		{TankSpeed: 8.0, TurrentRotateSpeed: 1.0},
 	}
 )

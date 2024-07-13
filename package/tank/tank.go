@@ -16,25 +16,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
-var (
-
-	// Define a list of enemy names
-	enemyNames = []string{"Albert", "Allen", "Bert", "Bob",
-		"Cecil", "Clarence", "Elliot", "Elmer",
-		"Ernie", "Eugene", "Fergus", "Ferris",
-		"Frank", "Frasier", "Fred", "George",
-		"Graham", "Harvey", "Irwin", "Larry",
-		"Lester", "Marvin", "Neil", "Niles",
-		"Oliver", "Opie", "Ryan", "Toby",
-		"Ulric", "Ulysses", "Uri", "Waldo",
-		"Wally", "Walt", "Wesley", "Yanni",
-		"Yogi", "Yuri"}
-)
-
 type TankType int
 
 const (
-	ScreenToLogicScaleX = 5.12
+	ScreenToLogicScaleX = 5.12 // 图片是 256大小，希望缩为 50
 	ScreenToLogicScaleY = 5.12
 
 	MinXCoordinates = 30.0
@@ -49,6 +34,10 @@ type Tank struct {
 	Y      float64
 	Width  float64 // 宽度
 	Height float64 // 高度
+
+	// 记录前一个位置，当做碰撞检测时候，回撤到前一个位置
+	PreX float64
+	PreY float64
 
 	Name string
 
@@ -100,6 +89,8 @@ type Tank struct {
 	Enemy *Tank
 
 	Projectiles []*Projectile // 发射的炮弹
+
+	LastCollisionTime time.Time
 }
 
 // 炮弹
@@ -112,13 +103,7 @@ type Projectile struct {
 	Height    float64 // 高度
 	IsExplode bool    // 是否已碰撞
 
-	Frame int
-}
-
-type TankPosition struct {
-	X  float64
-	Y  float64
-	TK *Tank
+	Frame int // 爆炸图片遍历使用
 }
 
 // 炮塔
@@ -178,7 +163,7 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		Turrent: Turret{
 			Angle:           270.0, // 默认指向上
 			ImagePath:       "resource/green_tank_turret.png",
-			RotationSpeed:   2.0,
+			RotationSpeed:   1.0,
 			ProjectileSpeed: 30.0,
 		},
 
@@ -204,17 +189,17 @@ func NewTank(x, y float64, tankType TankType) *Tank {
 		tank.MaxHealthPoints = 50
 		tank.HealthPoints = 50
 		tank.Angle = 90.0
-		tank.ForwardSpeed = level.Speed
-		tank.BackwardSpeed = level.RotateSpeed
+		tank.ForwardSpeed = level.TankSpeed                   // 前进速度
+		tank.Turrent.RotationSpeed = level.TurrentRotateSpeed // 炮塔旋转速度
 
-		tank.Turrent.RangeAngle = 45.0
-		tank.Turrent.RangeDistance = 100.0 + float64(r.Intn(300))
+		tank.Turrent.RangeAngle = 45.0                            // 攻击视角
+		tank.Turrent.RangeDistance = 100.0 + float64(r.Intn(300)) // 攻击范围
 		tank.Turrent.ImagePath = "resource/brown_tank_turret.png"
 		tank.Turrent.Angle = 90.0 // 敌人默认指向下
 		tank.Name = enemyNames[r.Intn(len(enemyNames))]
 	}
+	// 更新坦克的四个顶点坐标
 	tank.updateTankCollisionBox()
-
 	return &tank
 }
 
@@ -287,9 +272,7 @@ func (t *Tank) Update() {
 		if ebiten.IsKeyPressed(ebiten.KeySpace) {
 			t.shot()
 		}
-
 		if ebiten.IsKeyPressed(ebiten.KeyA) { // Press A
-
 			t.AddTankAngle(-t.RotationSpeed)
 			t.updateTankCollisionBox()
 		} else if ebiten.IsKeyPressed(ebiten.KeyD) { // Press D
@@ -298,10 +281,15 @@ func (t *Tank) Update() {
 			t.updateTankCollisionBox()
 		}
 		if ebiten.IsKeyPressed(ebiten.KeyW) { // Press W
+			t.PreX, t.PreY = t.X, t.Y // 记录前一个位置，当做碰撞检测时候，来回撤到前一个位置
+
 			t.X += t.ForwardSpeed * math.Cos(t.Angle*math.Pi/180)
 			t.Y += t.ForwardSpeed * math.Sin(t.Angle*math.Pi/180)
 			t.updateTankCollisionBox()
 		} else if ebiten.IsKeyPressed(ebiten.KeyS) { // Press S
+
+			t.PreX, t.PreY = t.X, t.Y
+
 			t.Y -= t.BackwardSpeed * math.Sin(t.Angle*math.Pi/180)
 			t.X -= t.BackwardSpeed * math.Cos(t.Angle*math.Pi/180)
 			t.updateTankCollisionBox()
@@ -366,36 +354,14 @@ func (t *Tank) updateTankCollisionBox() {
 	offsetX := float64(t.Width) / 2
 	offsetY := float64(t.Height) / 2
 
-	// 角度转弧度
-	//angleRad := t.Angle * math.Pi / 180 // 角度转弧度
-
-	/*
-		矩阵旋转公式：
-		x' = xCos(θ) - ySin(θ)
-		y' = xSin(θ) + ycos(θ)
-	*/
-
-	// t.X t.Y 矩形的中心点  左上角 (x = -offsetX  y = -offsetY)
-
-	// t.CollisionX1 = t.X - offsetX*math.Cos(angleRad) + offsetY*math.Sin(angleRad)
-	// t.CollisionY1 = t.Y - offsetX*math.Sin(angleRad) - offsetY*math.Cos(angleRad)
-
-	//  右上角 (x = offsetX y = -offsetY )
-	// t.CollisionX2 = t.X + offsetX*math.Cos(angleRad) + offsetY*math.Sin(angleRad)
-	// t.CollisionY2 = t.Y + offsetX*math.Sin(angleRad) - offsetY*math.Cos(angleRad)
-
-	// // 右下角 (x = offsetX y = offsetY)
-	// t.CollisionX3 = t.X + offsetX*math.Cos(angleRad) - offsetY*math.Sin(angleRad)
-	// t.CollisionY3 = t.Y + offsetX*math.Sin(angleRad) + offsetY*math.Cos(angleRad)
-
-	// // 左下角 (x = -offsetX y=offsetY)
-	// t.CollisionX4 = t.X - offsetX*math.Cos(angleRad) - offsetY*math.Sin(angleRad)
-	// t.CollisionY4 = t.Y - offsetX*math.Sin(angleRad) + offsetY*math.Cos(angleRad)
-
 	// t.X t.Y 矩形的中心点
+	// 左上角 (x = -offsetX  y = -offsetY)
 	t.CollisionX1, t.CollisionY1 = rotatePoint(t.X-offsetX, t.Y-offsetY, t.Angle, t.X, t.Y)
+	//  右上角 (x = offsetX y = -offsetY )
 	t.CollisionX2, t.CollisionY2 = rotatePoint(t.X+offsetX, t.Y-offsetY, t.Angle, t.X, t.Y)
+	// 右下角 (x = offsetX y = offsetY)
 	t.CollisionX3, t.CollisionY3 = rotatePoint(t.X+offsetX, t.Y+offsetY, t.Angle, t.X, t.Y)
+	// 左下角 (x = -offsetX y=offsetY)
 	t.CollisionX4, t.CollisionY4 = rotatePoint(t.X-offsetX, t.Y+offsetY, t.Angle, t.X, t.Y)
 
 }
@@ -412,7 +378,11 @@ func rotatePoint(x, y, angle, cx, cy float64) (float64, float64) {
 	x -= cx
 	y -= cy
 
-	// 旋转
+	/*
+		矩阵旋转公式：
+		x' = xCos(θ) - ySin(θ)
+		y' = xSin(θ) + ycos(θ)
+	*/
 	xNew := x*cosAngle - y*sinAngle
 	yNew := x*sinAngle + y*cosAngle
 
@@ -667,36 +637,37 @@ func init() {
 
 func DrawWarFog(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
 
-	shadowImage.Fill(color.Black)
-	rays := rayCasting(float64(x), float64(y), barriers)
-	// Subtract ray triangles from shadow
-	opt := &ebiten.DrawTrianglesOptions{}
-	opt.Address = ebiten.AddressRepeat
-	opt.Blend = ebiten.BlendSourceOut
-	for i, line := range rays {
-		nextLine := rays[(i+1)%len(rays)]
-		// Draw triangle of area between rays
-		v := rayVertices(float64(x), float64(y), nextLine.X2, nextLine.Y2, line.X2, line.Y2)
-		shadowImage.DrawTriangles(v, []uint16{0, 1, 2}, triangleImage, opt)
-	}
+	// shadowImage.Fill(color.Black)
 
-	op := &ebiten.DrawImageOptions{}
-	op.ColorScale.ScaleAlpha(1.0)
-	screen.DrawImage(shadowImage, op)
+	// // x,y 相当于光源的位置
+	// rays := rayCasting(float64(x), float64(y), barriers)
+
+	// opt := &ebiten.DrawTrianglesOptions{}
+	// opt.Address = ebiten.AddressRepeat
+	// opt.Blend = ebiten.BlendSourceOut
+	// for i, line := range rays {
+	// 	nextLine := rays[(i+1)%len(rays)]
+	// 	// 用三个点构成一个三角形
+	// 	v := rayVertices(float64(x), float64(y), nextLine.X2, nextLine.Y2, line.X2, line.Y2)
+	// 	// 裁剪为白色
+	// 	shadowImage.DrawTriangles(v, []uint16{0, 1, 2}, triangleImage, opt)
+	// }
+
+	// // 绘制迷雾最终效果
+	// op := &ebiten.DrawImageOptions{}
+	// op.ColorScale.ScaleAlpha(1.0)
+	// screen.DrawImage(shadowImage, op)
 
 	// 绘制障碍物
-
 	for _, barrier := range barriers {
-
 		if barrier.Border || barrier.Health == 0 {
 			continue
 		}
-
 		originalImg, _, _ := ebitenutil.NewImageFromFile(barrier.Image.Path)
 		// 对图片 originalImg 进行裁剪
 		subImg := originalImg.SubImage(image.Rect(barrier.Image.X, barrier.Image.Y,
 			barrier.Image.Width, barrier.Image.Height)).(*ebiten.Image)
-		// Draw the sub-image on the screen
+		// 绘制裁剪后的图片
 		options := &ebiten.DrawImageOptions{}
 		options.GeoM.Translate(barrier.X, barrier.Y)
 		screen.DrawImage(subImg, options)
@@ -751,8 +722,7 @@ func rayCasting(cx, cy float64, barriers []*Barrier) []line {
 		if bar.Health > 0 { // 障碍物有血
 
 			for _, obj := range bar.Objects {
-				// 遍历每个对象
-				// 对象的点集合
+				// 遍历每个对象中【点集合】
 				for _, p := range obj.points() {
 					// cx/cy 和 p[0],p[1] 构成一个线段
 					l := line{cx, cy, p[0], p[1]}

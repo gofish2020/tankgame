@@ -2,7 +2,6 @@ package game
 
 import (
 	"image/color"
-	"math"
 
 	"github.com/gofish2020/tankgame/package/monitor"
 	"github.com/gofish2020/tankgame/package/tank"
@@ -18,27 +17,10 @@ type Game struct {
 	barriers []*tank.Barrier
 }
 
-const defaultFreq = 50
-
 func NewGame() *Game {
-
 	game := Game{}
-
 	game.tks = append(game.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
 	return &game
-}
-
-func (g *Game) initData() {
-	utils.GameLevel++
-	if utils.GameLevel > 4 {
-		utils.GameProgress = "pass" // 通关
-		return
-	}
-	g.barriers = tank.NewMap()
-	g.tks = nil
-	g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
-	g.AddEnemy(2 * utils.GameLevel)
-	utils.GameProgress = "play"
 }
 
 func (g *Game) Restart() {
@@ -49,7 +31,17 @@ func (g *Game) Restart() {
 			utils.GameLevel = 0
 		}
 
-		g.initData()
+		utils.GameLevel++
+		if utils.GameLevel > 4 {
+			utils.GameProgress = "pass" // 通关
+			return
+		}
+		// 新地图
+		g.barriers = tank.NewMap()
+		g.tks = nil
+		g.tks = append(g.tks, tank.NewTank(float64(monitor.ScreenWidth/2.0), float64(monitor.ScreenHeight-30), tank.TankTypePlayer))
+		g.AddEnemy(2 * utils.GameLevel)
+		utils.GameProgress = "play"
 	}
 }
 
@@ -71,9 +63,11 @@ func (g *Game) AddEnemy(count int) {
 	}
 }
 
+// 更新数据
 func (g *Game) Update() error {
 
 	enemyCount := 0
+	// 游戏重启
 	g.Restart()
 
 	// 播放 bgm
@@ -89,7 +83,7 @@ func (g *Game) Update() error {
 	for _, tk := range g.tks {
 		// 更新坦克
 		tk.Update()
-		// 检测子弹碰撞
+		// 检测碰撞
 		tk.CheckCollisions(g.tks, g.barriers)
 		// 限制坦克运动范围
 		tk.LimitTankRange(tank.MinXCoordinates, tank.MinYCoordinates, float64(monitor.ScreenWidth)-30, float64(monitor.ScreenHeight)-30)
@@ -122,91 +116,22 @@ func (g *Game) Update() error {
 		}
 	}
 
+	// 更新 g.tks,剩余的坦克
 	g.tks = liveTanks
 
 	// 初始界面
 	if utils.GameProgress == "init" || utils.GameProgress == "pass" {
 		tank.MenuUpdate(g.tks) //  按钮移动 + 炮弹和按钮碰撞
-	} else if utils.GameProgress == "play" { // 游戏界面
-
-		// 更新npc攻击范围内的坦克(为了做自动攻击)
-		for _, npcPosition := range npcPositions {
-
-			npcPosition.TK.Enemy = nil // 默认无敌人
-
-			x := playerPosition.X - npcPosition.X
-			y := playerPosition.Y - npcPosition.Y
-			distance := math.Sqrt(x*x + y*y)
-
-			if npcPosition.TK.Turrent.RangeDistance >= distance { // 在攻击范围内
-
-				// 在视野内
-				angle := math.Atan2(y, x) * 180 / math.Pi
-				if angle < 0 {
-					angle += 360.0
-				}
-				startAngle, endAngle := npcPosition.TK.Turrent.Angle-npcPosition.TK.Turrent.RangeAngle, npcPosition.TK.Turrent.Angle+npcPosition.TK.Turrent.RangeAngle
-
-				if endAngle > 360 {
-					endAngle -= 360
-				}
-				if startAngle < 0 {
-					startAngle += 360
-				}
-
-				// 正常情况下 startAngle <= endAngle
-				if startAngle <= endAngle {
-					if startAngle <= angle && angle <= endAngle {
-						npcPosition.TK.Enemy = playerPosition.TK
-					}
-				} else {
-					// 如果处于 0 or 360的分割位置，startAngle > endAngle
-					if angle <= endAngle || angle >= startAngle {
-						npcPosition.TK.Enemy = playerPosition.TK
-					}
-				}
-			}
-
-			// 说明视野内没有敌人，自动旋转炮塔
-			if npcPosition.TK.Enemy == nil {
-				npcPosition.TK.AddTurrentAngle(2.0)
-
-				// 转向player的方向
-				angle := math.Atan2(y, x) * 180 / math.Pi
-				if angle < 0 {
-					angle += 360.0
-				}
-
-				//	npcPosition.TK.Angle 表示 坦克 和 x 轴的夹角
-				// angle 表示两个坦克连线 和 x轴的夹角
-				if npcPosition.TK.Angle > angle {
-					// 目的让t.Turrent.Angle 往夹角小的方向移动，让炮台尽可能快的对准敌人
-					if npcPosition.TK.Angle-angle > 180 {
-						npcPosition.TK.AddTankAngle(1.0)
-					} else {
-						npcPosition.TK.AddTankAngle(-1)
-					}
-				} else if npcPosition.TK.Angle < angle {
-
-					if angle-npcPosition.TK.Angle > 180 {
-						npcPosition.TK.AddTankAngle(-1)
-					} else {
-						npcPosition.TK.AddTankAngle(1)
-					}
-				}
-
-				// 移动坦克
-				npcPosition.TK.X += npcPosition.TK.ForwardSpeed * math.Cos(npcPosition.TK.Angle*math.Pi/180)
-				npcPosition.TK.Y += npcPosition.TK.ForwardSpeed * math.Sin(npcPosition.TK.Angle*math.Pi/180)
-			}
-
-		}
+	} else if utils.GameProgress == "play" {
+		// 移动 npc 坦克，并检测攻击范围内敌人
+		tank.MoveAndFineEnemyTank(playerPosition, npcPositions)
 	}
 
 	if utils.GameProgress == "play" && enemyCount == 0 { // 全部消灭
 		utils.GameProgress = "next" // 下一关
 	}
 
+	// 游戏结束，检测按键消息
 	tank.GameOverUpdate()
 	return nil
 }
@@ -216,6 +141,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{240, 222, 180, 215})
 
 	if utils.GameProgress == "init" || utils.GameProgress == "pass" {
+		// 起始界面
 		tank.MenuDraw(screen)
 	}
 
@@ -230,7 +156,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	// 绘制战争迷雾
+	// 绘制战争迷雾 + 障碍物
 	if utils.GameProgress == "play" {
 		tank.DrawWarFog(screen, x, y, g.barriers)
 	}
@@ -238,6 +164,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// 绘制死亡名单
 	tank.DrawNameList(screen)
 
+	// 游戏结束界面
 	tank.GameOverDraw(screen)
 }
 

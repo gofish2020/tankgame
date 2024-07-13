@@ -11,6 +11,21 @@ import (
 	"golang.org/x/image/font/opentype"
 )
 
+var (
+
+	// 坦克名字
+	enemyNames = []string{"Albert", "Allen", "Bert", "Bob",
+		"Cecil", "Clarence", "Elliot", "Elmer",
+		"Ernie", "Eugene", "Fergus", "Ferris",
+		"Frank", "Frasier", "Fred", "George",
+		"Graham", "Harvey", "Irwin", "Larry",
+		"Lester", "Marvin", "Neil", "Niles",
+		"Oliver", "Opie", "Ryan", "Toby",
+		"Ulric", "Ulysses", "Uri", "Waldo",
+		"Wally", "Walt", "Wesley", "Yanni",
+		"Yogi", "Yuri"}
+)
+
 type killedName struct {
 	name       string
 	updateTime time.Time
@@ -35,7 +50,7 @@ func DrawNameList(screen *ebiten.Image) {
 
 	x, y := 0., 25.
 	for i, killeName := range killedNames {
-		if time.Since(killeName.updateTime) > 5*time.Second {
+		if time.Since(killeName.updateTime) > 5*time.Second { // 显示 5s
 			killedNames = append(killedNames[:i], killedNames[i+1:]...) // 去掉
 			continue
 		}
