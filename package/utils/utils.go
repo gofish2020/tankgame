@@ -3,12 +3,9 @@ package utils
 import (
 	"image"
 	"image/color"
-	"image/png"
-	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/nfnt/resize"
 )
 
 var (
@@ -26,24 +23,7 @@ func init() {
 	whiteImage.WritePixels(pix)
 }
 
-func Resize(path string, w, h uint) *image.Image {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-	img, err := png.Decode(file)
-	if err != nil {
-		return nil
-	}
-
-	m := resize.Resize(w, h, img, resize.Lanczos2)
-	out, _ := os.Create("tank.png")
-	defer out.Close()
-	png.Encode(out, m)
-	return &m
-}
-
+// 绘制扇形
 func DrawSector(screen *ebiten.Image, x, y float32, lineWidth float32, radius float32, startAngle, endAngle float32, clr color.Color, isFill bool) {
 	var path vector.Path
 

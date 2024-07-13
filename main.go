@@ -18,9 +18,10 @@ func main() {
 	ebiten.SetWindowDecorated(false)
 	ebiten.SetWindowTitle("Tank Shoot")
 	ebiten.SetWindowSize(int(monitor.ScreenWidth), int(monitor.ScreenHeight))
-	ebiten.SetWindowFloating(true)         // 置顶显示
-	ebiten.SetWindowMousePassthrough(true) // 鼠标穿透
+	ebiten.SetWindowFloating(true)          // 置顶显示
+	ebiten.SetWindowMousePassthrough(false) // 鼠标穿透
 
+	// 需要提前调用一下，不然没有声音
 	audio.NewContext(44100)
 	audio.CurrentContext().NewPlayerFromBytes([]byte{}).Play() // 类似于预热的感觉（可能是库有bug）
 

@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
-	"sort"
 	"strconv"
 	"time"
 
@@ -51,10 +50,9 @@ type Tank struct {
 	HealthBarHeight float64
 
 	// 炮弹装填
-	ReloadTimer    int
-	ReloadMaxTimer int
-	ReloadSpeed    int
-
+	ReloadTimer     int
+	ReloadMaxTimer  int
+	ReloadSpeed     int
 	ReloadBarWidth  float64
 	ReloadBarHeight float64
 
@@ -90,7 +88,7 @@ type Tank struct {
 
 	Projectiles []*Projectile // 发射的炮弹
 
-	LastCollisionTime time.Time
+	LastCollisionTime time.Time // 碰撞发生的时间
 }
 
 // 炮弹
@@ -103,7 +101,7 @@ type Projectile struct {
 	Height    float64 // 高度
 	IsExplode bool    // 是否已碰撞
 
-	Frame int // 爆炸图片遍历使用
+	Frame int // 爆炸图片裁剪
 }
 
 // 炮塔
@@ -247,6 +245,7 @@ func (t *Tank) AddTurrentAngle(duration float64) {
 	}
 }
 
+// 目的在于让 坦克的角度始终使用 正度数 表示 [0,360]之间
 func (t *Tank) AddTankAngle(duration float64) {
 
 	t.Angle += duration
@@ -374,7 +373,7 @@ func rotatePoint(x, y, angle, cx, cy float64) (float64, float64) {
 	cosAngle := math.Cos(angleRad)
 	sinAngle := math.Sin(angleRad)
 
-	// 平移点到原点
+	// 表示让 x/y 以 cx/cy 作为原点的坐标
 	x -= cx
 	y -= cy
 
@@ -450,7 +449,7 @@ func (t *Tank) removeProjectile(index int) {
 	t.Projectiles = append(t.Projectiles[:index], t.Projectiles[index+1:]...)
 }
 
-//........................基础元素绘制.....................
+////////////////////////////////////// 坦克基本元素绘制 ///////////////////////////////////
 
 var (
 	projectileImage, _, _ = ebitenutil.NewImageFromFile("resource/projectile.png")
@@ -504,8 +503,7 @@ func (tk *Tank) drawProjectile(screen *ebiten.Image) {
 			op.GeoM.Translate(-baseOffsetX, -baseOffsetY)
 			// 旋转图片
 			op.GeoM.Rotate(projectile.Angle * math.Pi / 180.0)
-
-			// 再平移图片到窗口的中心位置 （ 因为绘制收缩了，所以屏幕坐标需要增大）
+			// 再平移图片
 			op.GeoM.Translate(projectile.X, projectile.Y)
 			// 绘制图片
 			screen.DrawImage(projectileImage, op)
@@ -592,13 +590,14 @@ func (tk *Tank) drawHealthBar(screen *ebiten.Image) {
 		filledColor = color.RGBA{0, 0, 0, 0} // Transparent
 	}
 
+	// filledWidth 至少为1，不然下面的 NewImage函数报错
 	filledWidth := 1 + int(tk.HealthBarWidth*percentage)
 
 	newImage := ebiten.NewImage(filledWidth, int(tk.HealthBarHeight))
 	newImage.Fill(filledColor)
 
 	op := &ebiten.DrawImageOptions{}
-	// tk.X-25.5 左对齐坦卡边缘
+	// tk.X-25.5 左对齐坦克边缘
 	op.GeoM.Translate(tk.X-25.5, tk.Y+30)
 	screen.DrawImage(newImage, op)
 
@@ -621,177 +620,4 @@ func (tk *Tank) drawReload(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(tk.X-25.5, tk.Y+35)
 	screen.DrawImage(newImage, op)
-}
-
-////////////////////////// 光源照射 （阴影计算）////////////////////////
-
-var (
-	// 阴影
-	shadowImage   = ebiten.NewImage(int(monitor.ScreenWidth), int(monitor.ScreenHeight))
-	triangleImage = ebiten.NewImage(int(monitor.ScreenWidth), int(monitor.ScreenHeight))
-)
-
-func init() {
-	triangleImage.Fill(color.White)
-}
-
-func DrawWarFogAndBarriers(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
-
-	if !utils.FullMap {
-		drawFog(screen, x, y, barriers)
-	}
-	// 绘制障碍物
-	drawBarrier(screen, x, y, barriers)
-
-}
-
-func drawBarrier(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
-	// 绘制障碍物
-	for _, barrier := range barriers {
-		if barrier.BarrierTypeVal == BarrierTypeNone || barrier.Health == 0 {
-			continue
-		}
-		originalImg, _, _ := ebitenutil.NewImageFromFile(barrier.Image.Path)
-		// 对图片 originalImg 进行裁剪
-		subImg := originalImg.SubImage(image.Rect(barrier.Image.X, barrier.Image.Y,
-			barrier.Image.Width, barrier.Image.Height)).(*ebiten.Image)
-		// 绘制裁剪后的图片
-		options := &ebiten.DrawImageOptions{}
-		options.GeoM.Translate(barrier.X, barrier.Y)
-		screen.DrawImage(subImg, options)
-	}
-}
-func drawFog(screen *ebiten.Image, x, y float64, barriers []*Barrier) {
-	shadowImage.Fill(color.Black)
-
-	// x,y 相当于光源的位置
-	rays := rayCasting(float64(x), float64(y), barriers)
-
-	opt := &ebiten.DrawTrianglesOptions{}
-	opt.Address = ebiten.AddressRepeat
-	opt.Blend = ebiten.BlendSourceOut
-	for i, line := range rays {
-		nextLine := rays[(i+1)%len(rays)]
-		// 用三个点构成一个三角形
-		v := rayVertices(float64(x), float64(y), nextLine.X2, nextLine.Y2, line.X2, line.Y2)
-		// 裁剪为白色
-		shadowImage.DrawTriangles(v, []uint16{0, 1, 2}, triangleImage, opt)
-	}
-
-	// 绘制迷雾最终效果
-	op := &ebiten.DrawImageOptions{}
-	op.ColorScale.ScaleAlpha(1.0)
-	screen.DrawImage(shadowImage, op)
-}
-
-// intersection 计算给定的两条之间的交点
-func intersection(l1, l2 line) (float64, float64, bool) {
-
-	// https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
-	denom := (l1.X1-l1.X2)*(l2.Y1-l2.Y2) - (l1.Y1-l1.Y2)*(l2.X1-l2.X2)
-	tNum := (l1.X1-l2.X1)*(l2.Y1-l2.Y2) - (l1.Y1-l2.Y1)*(l2.X1-l2.X2)
-	uNum := -((l1.X1-l1.X2)*(l1.Y1-l2.Y1) - (l1.Y1-l1.Y2)*(l1.X1-l2.X1))
-
-	if denom == 0 {
-		return 0, 0, false
-	}
-
-	t := tNum / denom
-	if t > 1 || t < 0 {
-		return 0, 0, false
-	}
-
-	u := uNum / denom
-	if u > 1 || u < 0 {
-		return 0, 0, false
-	}
-
-	x := l1.X1 + t*(l1.X2-l1.X1)
-	y := l1.Y1 + t*(l1.Y2-l1.Y1)
-	return x, y, true
-}
-
-func newRay(x, y, length, angle float64) line {
-	return line{
-		X1: x,
-		Y1: y,
-		X2: x + length*math.Cos(angle),
-		Y2: y + length*math.Sin(angle),
-	}
-}
-
-// rayCasting 返回从点 cx, cy 出发并与对象相交的直线切片
-func rayCasting(cx, cy float64, barriers []*Barrier) []line {
-	const rayLength = 10000 // something large enough to reach all objects
-
-	var rays []line
-
-	for _, bar := range barriers {
-
-		if bar.Health > 0 { // 障碍物有血
-
-			for _, obj := range bar.Objects {
-				// 遍历每个对象中【点集合】
-				for _, p := range obj.points() {
-					// cx/cy 和 p[0],p[1] 构成一个线段
-					l := line{cx, cy, p[0], p[1]}
-					// 从 cx/cy 出发到 p[0]/p[1] 构成的线段和 x轴正方向的夹角
-					angle := l.angle()
-
-					for _, offset := range []float64{-0.005, 0.005} {
-						points := [][2]float64{}
-
-						// 从点 cx,cy 发出一束光，长度为rayLength，角度为 angle +/- 0.005
-						ray := newRay(cx, cy, rayLength, angle+offset)
-
-						// 将光线ray 和 所有对象的所有的边，求交点
-						for _, bar := range barriers { // 所有的对象
-
-							if bar.Health > 0 { // 障碍物有血
-
-								for _, o := range bar.Objects {
-									for _, wall := range o.Walls {
-										if px, py, ok := intersection(ray, wall); ok { // 判断两个线段是否有交点
-											points = append(points, [2]float64{px, py}) // 记录交点
-										}
-									}
-								}
-							}
-						}
-
-						// 只保留 和 cx/cy 距离最近的交点
-						min := math.Inf(1) // 正无穷
-						minI := -1
-						for i, p := range points {
-							d2 := (cx-p[0])*(cx-p[0]) + (cy-p[1])*(cy-p[1]) // 点 cx/cy 和 p[0]/p[1] 之间的距离的平方（勾股定理）
-							if d2 < min {
-								min = d2
-								minI = i
-							}
-						}
-
-						if minI != -1 {
-							// 记录距离 cx/cy 和 最近的点，组成的线段
-							rays = append(rays, line{cx, cy, points[minI][0], points[minI][1]})
-						}
-					}
-				}
-			}
-		}
-
-	}
-
-	// Sort rays based on angle, otherwise light triangles will not come out right
-	sort.Slice(rays, func(i int, j int) bool {
-		return rays[i].angle() < rays[j].angle()
-	})
-	return rays
-}
-
-func rayVertices(x1, y1, x2, y2, x3, y3 float64) []ebiten.Vertex {
-	return []ebiten.Vertex{
-		{DstX: float32(x1), DstY: float32(y1), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-		{DstX: float32(x2), DstY: float32(y2), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-		{DstX: float32(x3), DstY: float32(y3), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-	}
 }

@@ -27,6 +27,8 @@ func MoveAndFineEnemyTank(playerPosition TankPosition, npcPositions []TankPositi
 			if angle < 0 {
 				angle += 360.0
 			}
+
+			// 炮塔的视角范围（也就是扇形两条边的夹角）
 			startAngle, endAngle := npcPosition.TK.Turrent.Angle-npcPosition.TK.Turrent.RangeAngle, npcPosition.TK.Turrent.Angle+npcPosition.TK.Turrent.RangeAngle
 
 			if endAngle > 360 {
